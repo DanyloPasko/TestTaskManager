@@ -1,125 +1,81 @@
 import firestoreService from './firestore.service';
 import {store} from '../store/store';
-import {markAsSynced, markSyncError, setTasks} from '../store/taskSlice';
+import {
+  markAsSynced,
+  markSyncError,
+  markAllAsSynced,
+  setTasks,
+} from '../store/taskSlice';
+import {CreateTaskInput, Task} from '../types/task';
 
-/**
- * Service for synchronizing local tasks with Firebase
- */
-class SyncService {
-  private isSyncing = false;
-  private syncQueue: string[] = [];
+let isSyncing = false;
 
-  /**
-   * Sync all pending tasks to Firebase
-   */
-  async syncPendingTasks(): Promise<void> {
-    if (this.isSyncing) {
-      console.log('Sync already in progress');
-      return;
-    }
+const mapTaskToDto = (task: Task): CreateTaskInput => ({
+  title: task.title,
+  status: task.status,
+  category: task.category ?? '',
+  priority: task.priority,
+});
 
-    this.isSyncing = true;
+const syncPendingTasks = async (): Promise<void> => {
+  if (isSyncing) {return;}
 
-    try {
-      const state = store.getState();
-      const { list: tasks, pendingSync } = state.tasks;
+  isSyncing = true;
 
-      if (pendingSync.length === 0) {
-        console.log('No tasks to sync');
-        return;
-      }
+  try {
+    const state = store.getState();
+    const {list, pendingSync} = state.tasks;
 
-      console.log(`Syncing ${pendingSync.length} tasks...`);
+    if (pendingSync.length === 0) {return;}
 
-      // Process each pending task
-      for (const taskId of pendingSync) {
-        const task = tasks.find(t => t.id === taskId);
-        if (!task) {
-          continue;
+    const idsToSync = [...pendingSync];
+
+    for (const taskId of idsToSync) {
+      const task = list.find(t => t.id === taskId);
+      if (!task) {continue;}
+
+      try {
+        const existingTask = await firestoreService.getTaskById(taskId);
+        const dto = mapTaskToDto(task);
+
+        if (existingTask) {
+          await firestoreService.updateTask(taskId, dto);
+        } else {
+          await firestoreService.createTask(dto);
         }
 
-        try {
-          // Check if task exists in Firestore
-          const existingTask = await firestoreService.getTaskById(taskId);
-
-          if (existingTask) {
-            // Update existing task
-            await firestoreService.updateTask(taskId, task);
-          } else {
-            // Create new task (if it was created offline)
-            await firestoreService.createTask({
-              ...task,
-              id: taskId,
-            } as any);
-          }
-
-          // Mark as synced in local state
-          store.dispatch(markAsSynced(taskId));
-          console.log(`Task ${taskId} synced successfully`);
-        } catch (error) {
-          console.error(`Failed to sync task ${taskId}:`, error);
-          store.dispatch(markSyncError(taskId));
-        }
+        store.dispatch(markAsSynced(taskId));
+      } catch {
+        store.dispatch(markSyncError(taskId));
       }
-
-      console.log('Sync completed');
-    } catch (error) {
-      console.error('Sync failed:', error);
-    } finally {
-      this.isSyncing = false;
     }
+
+    store.dispatch(markAllAsSynced());
+  } finally {
+    isSyncing = false;
   }
+};
 
-  /**
-   * Pull latest tasks from Firebase and update local state
-   */
-  async pullFromFirebase(): Promise<void> {
-    try {
-      console.log('Pulling tasks from Firebase...');
-      const tasks = await firestoreService.getTasks();
-      store.dispatch(setTasks(tasks));
-      console.log(`Pulled ${tasks.length} tasks from Firebase`);
-    } catch (error) {
-      console.error('Failed to pull from Firebase:', error);
-      throw error;
-    }
+const pullFromFirebase = async (): Promise<void> => {
+  const tasks = await firestoreService.getTasks();
+  store.dispatch(setTasks(tasks));
+};
+
+const fullSync = async (): Promise<void> => {
+  if (isSyncing) {return;}
+
+  isSyncing = true;
+
+  try {
+    await syncPendingTasks();
+    await pullFromFirebase();
+  } finally {
+    isSyncing = false;
   }
+};
 
-  /**
-   * Full sync: pull from Firebase and push pending changes
-   */
-  async fullSync(): Promise<void> {
-    try {
-      console.log('Starting full sync...');
-
-      // First, pull latest from Firebase
-      await this.pullFromFirebase();
-
-      // Then, push any pending local changes
-      await this.syncPendingTasks();
-
-      console.log('Full sync completed');
-    } catch (error) {
-      console.error('Full sync failed:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Add task to sync queue
-   */
-  addToSyncQueue(taskId: string): void {
-    if (!this.syncQueue.includes(taskId)) {
-      this.syncQueue.push(taskId);
-    }
-  }
-
-  /**
-   * Check if currently syncing
-   */
-  getIsSyncing(): boolean {
-    return this.isSyncing;
-  }
-}
-
-export default new SyncService();
+export default {
+  syncPendingTasks,
+  pullFromFirebase,
+  fullSync,
+};

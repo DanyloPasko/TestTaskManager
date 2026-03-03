@@ -1,180 +1,137 @@
-import firestore, {FirebaseFirestoreTypes} from '@react-native-firebase/firestore';
+import firestore, {
+  FirebaseFirestoreTypes,
+} from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
-import {Task} from '../types/task';
+import {CreateTaskInput, Task} from '../types/task';
 import {FIRESTORE_COLLECTIONS} from '../config/firebase';
 
-export interface FirestoreTask extends Omit<Task, 'createdAt' | 'updatedAt'> {
-  createdAt: any;
-  updatedAt: any;
-  syncStatus?: 'synced' | 'pending' | 'error';
-}
+const tasksCollection = firestore().collection(FIRESTORE_COLLECTIONS.TASKS);
 
-class FirestoreService {
-  private tasksCollection = firestore().collection(FIRESTORE_COLLECTIONS.TASKS);
+const convertTimestamp = (timestamp: any): string =>
+  timestamp?.toDate
+    ? timestamp.toDate().toISOString()
+    : timestamp || new Date().toISOString();
 
-  // Convert Firestore timestamp to ISO string
-  private convertTimestamp(timestamp: any): string {
-    if (timestamp?.toDate) {
-      return timestamp.toDate().toISOString();
-    }
-    return timestamp || new Date().toISOString();
-  }
+const fromFirestoreTask = (
+  doc: FirebaseFirestoreTypes.QueryDocumentSnapshot<FirebaseFirestoreTypes.DocumentData>,
+): Task => {
+  const data = doc.data() as any;
+  return {
+    ...data,
+    id: doc.id,
+    createdAt: convertTimestamp(data.createdAt),
+    updatedAt: convertTimestamp(data.updatedAt),
+    syncStatus: 'synced',
+  } as Task;
+};
 
-  // Convert Firestore task to app Task format
-  private fromFirestoreTask(doc: FirebaseFirestoreTypes.QueryDocumentSnapshot<FirebaseFirestoreTypes.DocumentData>): Task {
-    const data = doc.data() as FirestoreTask;
-    return {
-      ...data,
-      id: doc.id,
-      createdAt: this.convertTimestamp(data.createdAt),
-      updatedAt: this.convertTimestamp(data.updatedAt),
-    } as Task;
-  }
+const buildSafeUpdates = (
+  updates: Partial<CreateTaskInput>,
+): Record<string, any> => {
+  const safeUpdates: Record<string, any> = {};
+  if (updates.title !== undefined) {safeUpdates.title = updates.title;}
+  if (updates.description !== undefined)
+    {safeUpdates.description = updates.description;}
+  if (updates.status !== undefined) {safeUpdates.status = updates.status;}
+  if (updates.priority !== undefined) {safeUpdates.priority = updates.priority;}
+  if (updates.category !== undefined) {safeUpdates.category = updates.category;}
+  if (updates.imageUri !== undefined) {safeUpdates.imageUri = updates.imageUri;}
+  safeUpdates.updatedAt = firestore.FieldValue.serverTimestamp();
+  return safeUpdates;
+};
 
-  // Create a new task
-  async createTask(task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Promise<Task> {
-    try {
-      console.log('🔥 Firestore: Creating task...', task);
-      const docRef = await this.tasksCollection.add({
-        ...task,
-        createdAt: firestore.FieldValue.serverTimestamp(),
-        updatedAt: firestore.FieldValue.serverTimestamp(),
-        syncStatus: 'synced',
-      });
+const createTask = async (taskData: CreateTaskInput): Promise<Task> => {
+  if (!taskData.title?.trim()) {throw new Error('Task title is required');}
+  if (!taskData.priority) {throw new Error('Task priority is required');}
+  if (!taskData.status) {throw new Error('Task status is required');}
 
-      console.log('✅ Firestore: Task created with ID:', docRef.id);
-      const doc = await docRef.get();
-      return this.fromFirestoreTask(doc as FirebaseFirestoreTypes.QueryDocumentSnapshot);
-    } catch (error) {
-      console.error('❌ Firestore: Error creating task:', error);
-      throw error;
-    }
-  }
+  const docRef = await tasksCollection.add({
+    title: taskData.title,
+    description: taskData.description || '',
+    priority: taskData.priority,
+    status: taskData.status,
+    category: taskData.category || '',
+    imageUri: taskData.imageUri || '',
+    createdAt: firestore.FieldValue.serverTimestamp(),
+    updatedAt: firestore.FieldValue.serverTimestamp(),
+  });
 
-  // Get all tasks
-  async getTasks(): Promise<Task[]> {
-    try {
-      console.log('🔥 Firestore: Fetching all tasks...');
-      const snapshot = await this.tasksCollection
-        .orderBy('createdAt', 'desc')
-        .get();
+  const doc = await docRef.get();
+  return fromFirestoreTask(doc as FirebaseFirestoreTypes.QueryDocumentSnapshot);
+};
 
-      console.log('✅ Firestore: Fetched', snapshot.docs.length, 'tasks');
-      return snapshot.docs.map(doc => this.fromFirestoreTask(doc as FirebaseFirestoreTypes.QueryDocumentSnapshot));
-    } catch (error) {
-      console.error('❌ Firestore: Error fetching tasks:', error);
-      throw error;
-    }
-  }
+const getTasks = async (): Promise<Task[]> => {
+  const snapshot = await tasksCollection.orderBy('createdAt', 'desc').get();
+  return snapshot.docs.map(doc =>
+    fromFirestoreTask(doc as FirebaseFirestoreTypes.QueryDocumentSnapshot),
+  );
+};
 
-  // Get task by ID
-  async getTaskById(id: string): Promise<Task | null> {
-    try {
-      const doc = await this.tasksCollection.doc(id).get();
-      if (!doc.exists) {
-        return null;
-      }
-      return this.fromFirestoreTask(doc as FirebaseFirestoreTypes.QueryDocumentSnapshot);
-    } catch (error) {
-      console.error('Error fetching task:', error);
-      throw error;
-    }
-  }
+const getTaskById = async (id: string): Promise<Task | null> => {
+  const doc = await tasksCollection.doc(id).get();
+  if (!doc.exists) {return null;}
+  return fromFirestoreTask(doc as FirebaseFirestoreTypes.QueryDocumentSnapshot);
+};
 
-  // Update task
-  async updateTask(id: string, updates: Partial<Task>): Promise<void> {
-    try {
-      console.log('🔥 Firestore: Updating task', id, updates);
-      await this.tasksCollection.doc(id).update({
-        ...updates,
-        updatedAt: firestore.FieldValue.serverTimestamp(),
-        syncStatus: 'synced',
-      });
-      console.log('✅ Firestore: Task updated:', id);
-    } catch (error) {
-      console.error('❌ Firestore: Error updating task:', error);
-      throw error;
-    }
-  }
+const updateTask = async (
+  id: string,
+  updates: Partial<CreateTaskInput>,
+): Promise<void> => {
+  await tasksCollection.doc(id).update(buildSafeUpdates(updates));
+};
 
-  // Delete task
-  async deleteTask(id: string): Promise<void> {
-    try {
-      console.log('🔥 Firestore: Deleting task', id);
-      await this.tasksCollection.doc(id).delete();
-      console.log('✅ Firestore: Task deleted:', id);
-    } catch (error) {
-      console.error('❌ Firestore: Error deleting task:', error);
-      throw error;
-    }
-  }
+const deleteTask = async (id: string): Promise<void> => {
+  const doc = await tasksCollection.doc(id).get();
+  if (!doc.exists) {return;}
+  await tasksCollection.doc(id).delete();
+};
 
-  // Subscribe to tasks changes (real-time updates)
-  subscribeToTasks(callback: (tasks: Task[]) => void): () => void {
+const subscribeToTasks = (callback: (tasks: Task[]) => void): (() => void) => {
+  return tasksCollection.orderBy('createdAt', 'desc').onSnapshot(
+    snapshot => {
+      const tasks = snapshot.docs.map(doc =>
+        fromFirestoreTask(doc as FirebaseFirestoreTypes.QueryDocumentSnapshot),
+      );
+      callback(tasks);
+    },
+    error => console.error('Error in tasks subscription:', error),
+  );
+};
 
+const uploadImage = async (
+  taskId: string,
+  imageUri: string,
+): Promise<string> => {
+  const filename = `tasks/${taskId}/${Date.now()}.jpg`;
+  const reference = storage().ref(filename);
+  await reference.putFile(imageUri);
+  return reference.getDownloadURL();
+};
 
-    return this.tasksCollection.orderBy('createdAt', 'desc').onSnapshot(
-      snapshot => {
-        const tasks = snapshot.docs.map(doc =>
-          this.fromFirestoreTask(
-            doc as FirebaseFirestoreTypes.QueryDocumentSnapshot,
-          ),
-        );
-        callback(tasks);
-      },
-      error => {
-        console.error('Error in tasks subscription:', error);
-      },
-    );
-  }
+const deleteImage = async (imageUrl: string): Promise<void> => {
+  const reference = storage().refFromURL(imageUrl);
+  await reference.delete();
+};
 
-  // Upload image to Firebase Storage
-  async uploadImage(taskId: string, imageUri: string): Promise<string> {
-    try {
-      const filename = `tasks/${taskId}/${Date.now()}.jpg`;
-      const reference = storage().ref(filename);
+const batchUpdateTasks = async (
+  tasks: {id: string; updates: Partial<CreateTaskInput>}[],
+): Promise<void> => {
+  const batch = firestore().batch();
+  tasks.forEach(({id, updates}) => {
+    const docRef = tasksCollection.doc(id);
+    batch.update(docRef, buildSafeUpdates(updates));
+  });
+  await batch.commit();
+};
 
-      await reference.putFile(imageUri);
-
-
-      return await reference.getDownloadURL();
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      throw error;
-    }
-  }
-
-  // Delete image from Firebase Storage
-  async deleteImage(imageUrl: string): Promise<void> {
-    try {
-      const reference = storage().refFromURL(imageUrl);
-      await reference.delete();
-    } catch (error) {
-      console.error('Error deleting image:', error);
-      throw error;
-    }
-  }
-
-  // Batch operations for offline sync
-  async batchUpdateTasks(tasks: { id: string; updates: Partial<Task> }[]): Promise<void> {
-    try {
-      const batch = firestore().batch();
-
-      tasks.forEach(({ id, updates }) => {
-        const docRef = this.tasksCollection.doc(id);
-        batch.update(docRef, {
-          ...updates,
-          updatedAt: firestore.FieldValue.serverTimestamp(),
-          syncStatus: 'synced',
-        });
-      });
-
-      await batch.commit();
-    } catch (error) {
-      console.error('Error in batch update:', error);
-      throw error;
-    }
-  }
-}
-
-export default new FirestoreService();
+export default {
+  createTask,
+  getTasks,
+  getTaskById,
+  updateTask,
+  deleteTask,
+  subscribeToTasks,
+  uploadImage,
+  deleteImage,
+  batchUpdateTasks,
+};

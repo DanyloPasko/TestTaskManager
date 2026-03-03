@@ -14,3 +14,6 @@ export interface Task {
   imageUri?: string; // Local image path
   syncStatus?: SyncStatus;
 }
+
+// Type for creating new tasks (without id and timestamps)
+export type CreateTaskInput = Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'syncStatus'>;
