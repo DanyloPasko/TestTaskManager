@@ -1,8 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native';
-import { Task } from '../types/task';
-import { Palette, useTheme } from '../theme/designSystem';
-import { useTasks } from '../hooks/useTasks';
+import {Alert, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {Task} from '../types/task';
+import {Palette, useTheme} from '../theme/designSystem';
+import {useTasks} from '../hooks/useTasks';
 
 type Props = {
   task: Task;
@@ -52,46 +52,55 @@ export default function TaskItem({ task, onPress }: Props) {
   const isCompleted = task.status !== 'pending';
 
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.8}>
-      <View style={styles.content}>
+    <View style={styles.container}>
+      <TouchableOpacity
+        style={styles.contentArea}
+        onPress={onPress}
+        activeOpacity={0.8}
+      >
+        <View style={styles.content}>
+          <Text
+            style={[
+              styles.title,
+              isCompleted && styles.titleCompleted,
+            ]}
+          >
+            {task.title}
+          </Text>
+          {task.description ? (
+            <Text style={[styles.description, isCompleted && styles.descriptionCompleted]}>
+              {task.description}
+            </Text>
+          ) : null}
+        </View>
+
         <Text
           style={[
-            styles.title,
-            isCompleted && styles.titleCompleted,
+            styles.priority,
+            styles[`priority_${task.priority}` as PriorityKey],
           ]}
         >
-          {task.title}
+          {task.priority.toUpperCase()}
         </Text>
-        {task.description ? (
-          <Text style={[styles.description, isCompleted && styles.descriptionCompleted]}>
-            {task.description}
-          </Text>
-        ) : null}
-      </View>
-
-      <Text
-        style={[
-          styles.priority,
-          styles[`priority_${task.priority}` as PriorityKey],
-        ]}
-      >
-        {task.priority.toUpperCase()}
-      </Text>
-
+      </TouchableOpacity>
       <View style={styles.buttons}>
-        <TouchableOpacity onPress={handleToggleStatus} activeOpacity={0.7}>
+        <TouchableOpacity
+          onPress={handleToggleStatus}
+          activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
           <Text style={[styles.buttonText, { color: 'green' }]}>✓</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.button]}
           onPress={handleDelete}
           activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <Text style={styles.buttonText}>🗑️</Text>
         </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -107,15 +116,21 @@ const useStyles = (palette: Palette) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
+      gap: 8,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
       shadowRadius: 4,
       elevation: 3,
     },
+    contentArea: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
     content: {
       flex: 1,
-      marginRight: 12,
     },
     title: {
       color: palette.text,
@@ -168,19 +183,11 @@ const useStyles = (palette: Palette) =>
     buttons: {
       flexDirection: 'row',
       alignItems: 'center',
-    },
-    button: {
-      borderRadius: 6,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      marginLeft: 8,
+      gap: 8,
     },
     buttonText: {
-      padding: 4,
+      padding: 8,
       fontWeight: '600',
-      fontSize: 18,
-      color: 'white',
+      fontSize: 20,
     },
   });

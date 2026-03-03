@@ -1,22 +1,29 @@
-import { useEffect, useCallback, useState } from 'react';
-import { useNetworkStatus } from './useNetworkStatus';
+import {useEffect, useCallback, useState, useRef} from 'react';
+import {useNetworkStatus} from './useNetworkStatus';
 import syncService from '../services/sync.service';
-import { useAppSelector } from './redux';
+import {useAppSelector} from './redux';
 
 /**
  * Hook for managing offline/online synchronization
- * Automatically syncs when coming back online
+ * - Manual sync
+ * - Auto sync only when coming back online
  */
 export const useSync = () => {
-  const { isOnline } = useNetworkStatus();
+  const {isOnline} = useNetworkStatus();
   const pendingSync = useAppSelector(state => state.tasks.pendingSync);
+
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
   const hasPendingChanges = pendingSync.length > 0;
 
-  // Manual sync trigger
+  // Ref для отслеживания предыдущего состояния сети
+  const wasOnlineRef = useRef<boolean>(isOnline);
+
+  /**
+   * Manual sync trigger
+   */
   const triggerSync = useCallback(async () => {
     if (!isOnline) {
       setSyncError('Cannot sync while offline');
@@ -35,27 +42,24 @@ export const useSync = () => {
       setLastSyncTime(new Date());
     } catch (error: any) {
       console.error('Sync failed:', error);
-      setSyncError(error.message || 'Sync failed');
+      setSyncError(error?.message || 'Sync failed');
     } finally {
       setIsSyncing(false);
     }
   }, [isOnline, isSyncing]);
 
-  // Auto-sync when coming back online
+  /**
+   * Auto sync ONLY when going from offline -> online
+   */
   useEffect(() => {
-    if (isOnline && hasPendingChanges && !isSyncing) {
-      console.log('Network available, syncing pending changes...');
-      triggerSync();
-    }
-  }, [isOnline, hasPendingChanges, isSyncing, triggerSync]);
+    const wasOnline = wasOnlineRef.current;
 
-  // Initial sync when component mounts (if online)
-  useEffect(() => {
-    if (isOnline && !isSyncing) {
+    if (!wasOnline && isOnline) {
       triggerSync();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
+    wasOnlineRef.current = isOnline;
+  }, [isOnline, triggerSync]);
 
   return {
     isOnline,
