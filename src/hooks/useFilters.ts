@@ -11,35 +11,23 @@ import {
   resetFilters,
 } from '../store/filterSlice';
 
-/**
- * Custom hook for managing task filters and pagination
- */
 export const useFilters = () => {
   const dispatch = useAppDispatch();
   const filters = useAppSelector(state => state.filters.filters);
   const pagination = useAppSelector(state => state.filters.pagination);
   const allTasks = useAppSelector(state => state.tasks.list);
 
-  // Filter tasks based on current filters
   const getFilteredTasks = useCallback((): Task[] => {
     let filtered = [...allTasks];
 
-    // Status filter
     if (filters.status && filters.status !== 'all') {
       filtered = filtered.filter(task => task.status === filters.status);
     }
 
-    // Priority filter
     if (filters.priority && filters.priority !== 'all') {
       filtered = filtered.filter(task => task.priority === filters.priority);
     }
 
-    // Category filter
-    if (filters.category && filters.category !== 'all') {
-      filtered = filtered.filter(task => task.category === filters.category);
-    }
-
-    // Search text filter
     if (filters.searchText && filters.searchText.trim()) {
       const searchLower = filters.searchText.toLowerCase();
       filtered = filtered.filter(
@@ -52,7 +40,6 @@ export const useFilters = () => {
     return filtered;
   }, [allTasks, filters]);
 
-  // Get paginated tasks
   const getPaginatedTasks = useCallback((): Task[] => {
     const filtered = getFilteredTasks();
     const startIndex = (pagination.page - 1) * pagination.pageSize;

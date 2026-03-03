@@ -19,76 +19,109 @@ import {useImagePicker} from '../hooks/useImagePicker';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TaskForm'>;
 
-export default function TaskFormScreen({ navigation, route }: Props) {
-  const { palette } = useTheme();
+type PriorityButtonProps = {
+  value: Priority;
+  current: Priority;
+  onPress: (value: Priority) => void;
+  styles: ReturnType<typeof useStyles>;
+};
+
+const PriorityButton = ({
+  value,
+  current,
+  onPress,
+  styles,
+}: PriorityButtonProps) => (
+  <TouchableOpacity
+    onPress={() => onPress(value)}
+    style={[
+      styles.priorityButton,
+      current === value && styles.priorityButtonActive,
+    ]}>
+    <Text
+      style={[
+        styles.priorityText,
+        current === value && styles.priorityTextActive,
+      ]}>
+      {value.toUpperCase()}
+    </Text>
+  </TouchableOpacity>
+);
+
+type ImageSectionProps = {
+  imageUri: string;
+  onPick: () => void;
+  onRemove: () => void;
+  styles: ReturnType<typeof useStyles>;
+};
+
+const ImageSection = ({
+  imageUri,
+  onPick,
+  onRemove,
+  styles,
+}: ImageSectionProps) =>
+  imageUri ? (
+    <View style={styles.imageContainer}>
+      <Image source={{uri: imageUri}} style={styles.image} />
+      <TouchableOpacity style={styles.removeImageButton} onPress={onRemove}>
+        <Text style={styles.removeImageText}>✕ Remove</Text>
+      </TouchableOpacity>
+    </View>
+  ) : (
+    <TouchableOpacity style={styles.imagePickerButton} onPress={onPick}>
+      <Text style={styles.imagePickerText}>📸 Add Image</Text>
+    </TouchableOpacity>
+  );
+
+export default function TaskFormScreen({navigation, route}: Props) {
+  const {palette} = useTheme();
   const styles = useStyles(palette);
   const editingTask = route.params?.task;
-  const { createTask, updateTask, isCreating, isUpdating } = useTasks();
-  const { pickImage } = useImagePicker();
+  const {createTask, updateTask, isCreating, isUpdating} = useTasks();
+  const {pickImage} = useImagePicker();
 
   const [title, setTitle] = useState(editingTask?.title || '');
   const [description, setDescription] = useState(
-    editingTask?.description || ''
+    editingTask?.description || '',
   );
   const [priority, setPriority] = useState<Priority>(
-    editingTask?.priority || 'medium'
+    editingTask?.priority || 'medium',
   );
   const [imageUri, setImageUri] = useState(editingTask?.imageUri || '');
 
   useEffect(() => {
-    if (editingTask) {
-      navigation.setOptions({ title: 'Edit Task' });
-    }
+    if (editingTask) {navigation.setOptions({title: 'Edit Task'});}
   }, [editingTask, navigation]);
 
   const handleImagePick = async () => {
     try {
-      console.log('🖼️ TaskFormScreen: handleImagePick called');
       const result = await pickImage();
-      console.log('🖼️ TaskFormScreen: pickImage result:', result);
-      if (result) {
-        console.log('🖼️ TaskFormScreen: Setting image URI:', result.uri);
-        setImageUri(result.uri);
-      } else {
-        console.log('🖼️ TaskFormScreen: pickImage returned null');
-      }
-    } catch (error) {
-      console.error('❌ TaskFormScreen: Failed to pick image:', error);
+      if (result) {setImageUri(result.uri);}
+    } catch {
       Alert.alert('Error', 'Failed to pick image');
     }
   };
 
-  const handleRemoveImage = () => {
-    setImageUri('');
-  };
+  const handleRemoveImage = () => setImageUri('');
 
   const onSave = async () => {
     if (!title.trim()) {
       Alert.alert('Validation', 'Title is required');
       return;
     }
-
     try {
-      if (editingTask) {
-        await updateTask(editingTask.id, {
-          title,
-          description,
-          priority,
-          status: editingTask.status,
-          imageUri: imageUri || undefined,
-        });
-      } else {
-        await createTask({
-          title,
-          description,
-          priority,
-          status: 'pending',
-          imageUri: imageUri || undefined,
-        });
-      }
+      const taskData = {
+        title,
+        description,
+        priority,
+        status: editingTask?.status || 'pending',
+        imageUri: imageUri || undefined,
+      };
+      if (editingTask) {await updateTask(editingTask.id, taskData);}
+      else {await createTask(taskData);}
       navigation.goBack();
-    } catch (error) {
-      console.error('Failed to save task:', error);
+    } catch {
       Alert.alert('Error', 'Failed to save task');
     }
   };
@@ -117,52 +150,30 @@ export default function TaskFormScreen({ navigation, route }: Props) {
 
         <Text style={styles.label}>Priority</Text>
         <View style={styles.priorityRow}>
-          {(['low', 'medium', 'high'] as Priority[]).map((p) => (
-            <TouchableOpacity
+          {(['low', 'medium', 'high'] as Priority[]).map(p => (
+            <PriorityButton
               key={p}
-              onPress={() => setPriority(p)}
-              style={[
-                styles.priorityButton,
-                priority === p && styles.priorityButtonActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.priorityText,
-                  priority === p && styles.priorityTextActive,
-                ]}
-              >
-                {p.toUpperCase()}
-              </Text>
-            </TouchableOpacity>
+              value={p}
+              current={priority}
+              onPress={setPriority}
+              styles={styles}
+            />
           ))}
         </View>
+
         <Text style={styles.label}>Image</Text>
-        {imageUri ? (
-          <View style={styles.imageContainer}>
-            <Image source={{ uri: imageUri }} style={styles.image} />
-            <TouchableOpacity
-              style={styles.removeImageButton}
-              onPress={handleRemoveImage}
-            >
-              <Text style={styles.removeImageText}>✕ Remove</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <TouchableOpacity
-            style={styles.imagePickerButton}
-            onPress={handleImagePick}
-          >
-            <Text style={styles.imagePickerText}>📸 Add Image</Text>
-          </TouchableOpacity>
-        )}
+        <ImageSection
+          imageUri={imageUri}
+          onPick={handleImagePick}
+          onRemove={handleRemoveImage}
+          styles={styles}
+        />
       </ScrollView>
 
       <TouchableOpacity
         style={styles.saveButton}
         onPress={onSave}
-        disabled={isCreating || isUpdating}
-      >
+        disabled={isCreating || isUpdating}>
         <Text style={styles.saveButtonText}>
           {isCreating || isUpdating ? 'Saving...' : 'Save Task'}
         </Text>
@@ -173,7 +184,7 @@ export default function TaskFormScreen({ navigation, route }: Props) {
 
 const useStyles = (palette: Palette) =>
   StyleSheet.create({
-    container: { padding: 16, flex: 1, backgroundColor: palette.background },
+    container: {padding: 16, flex: 1, backgroundColor: palette.background},
     input: {
       borderWidth: 1,
       borderColor: palette.text + '20',
@@ -184,10 +195,7 @@ const useStyles = (palette: Palette) =>
       marginBottom: 12,
       color: palette.text,
     },
-    multilineInput: {
-      height: 100,
-      textAlignVertical: 'top',
-    },
+    multilineInput: {height: 100, textAlignVertical: 'top'},
     label: {
       fontSize: 14,
       marginTop: 12,
@@ -214,47 +222,10 @@ const useStyles = (palette: Palette) =>
       backgroundColor: palette.primary,
       borderColor: palette.primary,
     },
-    priorityText: {
-      fontSize: 12,
-      color: palette.text,
-      fontWeight: '600',
-    },
+    priorityText: {fontSize: 12, color: palette.text, fontWeight: '600'},
     priorityTextActive: {
       color: palette.text === '#fff' ? '#121212' : '#fff',
       fontWeight: '700',
-    },
-    categoryPicker: {
-      justifyContent: 'center',
-    },
-    categoryPickerText: {
-      color: palette.text,
-      fontSize: 16,
-    },
-    categoryDropdown: {
-      backgroundColor: palette.secondary,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: palette.text + '20',
-      marginBottom: 12,
-      overflow: 'hidden',
-    },
-    categoryOption: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 12,
-      paddingVertical: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: palette.text + '10',
-    },
-    categoryDot: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      marginRight: 12,
-    },
-    categoryOptionText: {
-      fontSize: 14,
-      color: palette.text,
     },
     imageContainer: {
       marginBottom: 12,
@@ -262,22 +233,14 @@ const useStyles = (palette: Palette) =>
       overflow: 'hidden',
       backgroundColor: palette.secondary,
     },
-    image: {
-      width: '100%',
-      height: 200,
-      borderRadius: 8,
-    },
+    image: {width: '100%', height: 200, borderRadius: 8},
     removeImageButton: {
       paddingVertical: 8,
       paddingHorizontal: 12,
       backgroundColor: '#f44336' + '20',
       alignItems: 'center',
     },
-    removeImageText: {
-      color: '#f44336',
-      fontWeight: '600',
-      fontSize: 14,
-    },
+    removeImageText: {color: '#f44336', fontWeight: '600', fontSize: 14},
     imagePickerButton: {
       paddingVertical: 12,
       paddingHorizontal: 16,
@@ -289,11 +252,7 @@ const useStyles = (palette: Palette) =>
       borderColor: palette.primary,
       borderStyle: 'dashed',
     },
-    imagePickerText: {
-      color: palette.primary,
-      fontWeight: '600',
-      fontSize: 16,
-    },
+    imagePickerText: {color: palette.primary, fontWeight: '600', fontSize: 16},
     saveButton: {
       marginTop: 'auto',
       backgroundColor: palette.primary,

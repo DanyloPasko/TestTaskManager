@@ -12,7 +12,7 @@ const persistConfig = {
   key: 'root',
   storage: AsyncStorage,
   whitelist: ['tasks', 'categories', 'filters'],
-  blacklist: ['tasksApi'], // Don't persist RTK Query cache
+  blacklist: ['tasksApi'],
 };
 
 const rootReducer = combineReducers({

@@ -20,7 +20,6 @@ const taskSlice = createSlice({
   reducers: {
     addTaskLocal: (state, action: PayloadAction<CreateTaskInput>) => {
       const now = new Date().toISOString();
-
       const newTask: Task = {
         ...action.payload,
         id: uuid(),
@@ -28,74 +27,48 @@ const taskSlice = createSlice({
         updatedAt: now,
         syncStatus: 'pending',
       };
-
-      state.list.push(newTask);
+      state.list.unshift(newTask);
       state.pendingSync.push(newTask.id);
     },
-
     deleteTaskLocal: (state, action: PayloadAction<string>) => {
       state.list = state.list.filter(t => t.id !== action.payload);
       state.pendingSync = state.pendingSync.filter(id => id !== action.payload);
     },
-
-    toggleStatusLocal: (state, action: PayloadAction<string>) => {
-      const task = state.list.find(t => t.id === action.payload);
-      if (!task) {return;}
-
-      task.status = task.status === 'pending' ? 'completed' : 'pending';
-      task.updatedAt = new Date().toISOString();
-      task.syncStatus = 'pending';
-
-      if (!state.pendingSync.includes(task.id)) {
-        state.pendingSync.push(task.id);
-      }
-    },
-
     updateTaskLocal: (
       state,
       action: PayloadAction<{id: string; updates: Partial<CreateTaskInput>}>,
     ) => {
       const task = state.list.find(t => t.id === action.payload.id);
       if (!task) {return;}
-
       Object.assign(task, action.payload.updates, {
         updatedAt: new Date().toISOString(),
         syncStatus: 'pending',
       });
-
-      if (!state.pendingSync.includes(task.id)) {
-        state.pendingSync.push(task.id);
-      }
+      if (!state.pendingSync.includes(task.id)) {state.pendingSync.push(task.id);}
     },
-
-    markAsSynced: (state, action: PayloadAction<string>) => {
-      const task = state.list.find(t => t.id === action.payload);
+    markAsSynced: (
+      state,
+      action: PayloadAction<{oldId: string; newId?: string}>,
+    ) => {
+      const {oldId, newId} = action.payload;
+      const task = state.list.find(t => t.id === oldId);
       if (task) {
         task.syncStatus = 'synced';
+        if (newId && newId !== oldId) {task.id = newId;}
       }
-
-      state.pendingSync = state.pendingSync.filter(id => id !== action.payload);
+      state.pendingSync = state.pendingSync.filter(id => id !== oldId);
     },
-
     markSyncError: (state, action: PayloadAction<string>) => {
       const task = state.list.find(t => t.id === action.payload);
-      if (task) {
-        task.syncStatus = 'error';
-      }
+      if (task) {task.syncStatus = 'error';}
     },
-
-    markAllAsSynced: state => {
-      state.list.forEach(task => {
-        task.syncStatus = 'synced';
-      });
-
-      state.pendingSync = [];
-      state.lastSyncTime = new Date().toISOString();
-    },
-
     setTasks: (state, action: PayloadAction<Task[]>) => {
-      state.list = action.payload;
-      state.pendingSync = [];
+      const pending = state.list.filter(t => t.syncStatus === 'pending');
+      state.list = [
+        ...action.payload.filter(t => !pending.find(p => p.id === t.id)),
+        ...pending,
+      ];
+      state.pendingSync = pending.map(t => t.id);
       state.lastSyncTime = new Date().toISOString();
     },
   },
@@ -104,12 +77,9 @@ const taskSlice = createSlice({
 export const {
   addTaskLocal,
   deleteTaskLocal,
-  toggleStatusLocal,
   updateTaskLocal,
   markAsSynced,
-  markAllAsSynced,
   markSyncError,
   setTasks,
 } = taskSlice.actions;
-
 export default taskSlice.reducer;

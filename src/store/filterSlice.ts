@@ -5,12 +5,11 @@ const initialState = {
   filters: {
     status: 'all',
     priority: 'all',
-    category: 'all',
     searchText: '',
   },
   pagination: {
     page: 1,
-    pageSize: 10,
+    pageSize: 4,
     total: 0,
   },
 };
@@ -51,7 +50,6 @@ const filterSlice = createSlice({
       state.filters = {
         status: 'all',
         priority: 'all',
-        category: 'all',
         searchText: '',
       };
       state.pagination.page = 1;

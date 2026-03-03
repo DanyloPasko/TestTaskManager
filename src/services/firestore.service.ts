@@ -41,10 +41,6 @@ const buildSafeUpdates = (
 };
 
 const createTask = async (taskData: CreateTaskInput): Promise<Task> => {
-  if (!taskData.title?.trim()) {throw new Error('Task title is required');}
-  if (!taskData.priority) {throw new Error('Task priority is required');}
-  if (!taskData.status) {throw new Error('Task status is required');}
-
   const docRef = await tasksCollection.add({
     title: taskData.title,
     description: taskData.description || '',
@@ -55,7 +51,6 @@ const createTask = async (taskData: CreateTaskInput): Promise<Task> => {
     createdAt: firestore.FieldValue.serverTimestamp(),
     updatedAt: firestore.FieldValue.serverTimestamp(),
   });
-
   const doc = await docRef.get();
   return fromFirestoreTask(doc as FirebaseFirestoreTypes.QueryDocumentSnapshot);
 };
