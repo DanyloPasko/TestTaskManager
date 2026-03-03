@@ -1,41 +1,35 @@
-import {useCallback, useEffect} from 'react';
+import { useCallback, useEffect } from 'react';
 import {
-  useCreateTaskMutation,
-  useDeleteTaskMutation,
   useGetTasksQuery,
-  useToggleTaskStatusMutation,
+  useCreateTaskMutation,
   useUpdateTaskMutation,
+  useDeleteTaskMutation,
+  useToggleTaskStatusMutation,
 } from '../store/api/tasksApi';
-import {CreateTaskInput} from '../types/task';
-import {useNetworkStatus} from './useNetworkStatus';
-import {useAppDispatch, useAppSelector} from './redux';
+import { CreateTaskInput } from '../types/task';
+import { useNetworkStatus } from './useNetworkStatus';
+import { useAppDispatch, useAppSelector } from './redux';
 import {
   addTaskLocal,
-  deleteTaskLocal,
-  setTasks,
-  toggleStatusLocal,
   updateTaskLocal,
+  deleteTaskLocal,
+  toggleStatusLocal,
+  setTasks,
 } from '../store/taskSlice';
 
 export const useTasks = () => {
-  const {isOnline} = useNetworkStatus();
+  const { isOnline } = useNetworkStatus();
   const dispatch = useAppDispatch();
   const localTasks = useAppSelector(state => state.tasks.list);
 
-  const {
-    data: remoteTasks = [],
-    isLoading,
-    isError,
-    refetch,
-  } = useGetTasksQuery(undefined, {
+  const { data: remoteTasks = [], isLoading, isError, refetch } = useGetTasksQuery(undefined, {
     skip: false,
   });
 
-  const [createTaskRemote, {isLoading: isCreating}] = useCreateTaskMutation();
-  const [updateTaskRemote, {isLoading: isUpdating}] = useUpdateTaskMutation();
-  const [deleteTaskRemote, {isLoading: isDeleting}] = useDeleteTaskMutation();
-  const [toggleStatusRemote, {isLoading: isToggling}] =
-    useToggleTaskStatusMutation();
+  const [createTaskRemote, { isLoading: isCreating }] = useCreateTaskMutation();
+  const [updateTaskRemote, { isLoading: isUpdating }] = useUpdateTaskMutation();
+  const [deleteTaskRemote, { isLoading: isDeleting }] = useDeleteTaskMutation();
+  const [toggleStatusRemote, { isLoading: isToggling }] = useToggleTaskStatusMutation();
 
   const tasks = localTasks;
 
@@ -51,10 +45,7 @@ export const useTasks = () => {
       try {
         if (isOnline) {
           try {
-            console.log(
-              'useTasks: handleCreateTask - online mode, data:',
-              taskData,
-            );
+            console.log('useTasks: handleCreateTask - online mode, data:', taskData);
             const createdTask = await createTaskRemote(taskData).unwrap();
             console.log('useTasks: Task created in Firebase:', createdTask);
             // Update local state with the created task from Firebase
@@ -79,23 +70,20 @@ export const useTasks = () => {
         throw error;
       }
     },
-    [isOnline, createTaskRemote, dispatch, localTasks],
+    [isOnline, createTaskRemote, dispatch, localTasks]
   );
 
   const handleUpdateTask = useCallback(
     async (id: string, updates: Partial<CreateTaskInput>) => {
       try {
-        dispatch(updateTaskLocal({id, updates}));
+        dispatch(updateTaskLocal({ id, updates }));
         if (isOnline) {
           try {
             console.log('useTasks: handleUpdateTask - syncing to Firebase');
-            await updateTaskRemote({id, updates}).unwrap();
+            await updateTaskRemote({ id, updates }).unwrap();
             console.log('useTasks: Task update synced to Firebase');
           } catch (error: any) {
-            console.error(
-              'useTasks: Failed to sync update to Firebase:',
-              error,
-            );
+            console.error('useTasks: Failed to sync update to Firebase:', error);
           }
         }
       } catch (error) {
@@ -103,7 +91,7 @@ export const useTasks = () => {
         throw error;
       }
     },
-    [isOnline, updateTaskRemote, dispatch],
+    [isOnline, updateTaskRemote, dispatch]
   );
 
   const handleDeleteTask = useCallback(
@@ -113,14 +101,8 @@ export const useTasks = () => {
         dispatch(deleteTaskLocal(id));
         if (isOnline) {
           try {
-            console.log('useTasks: handleDeleteTask - syncing to Firebase');
-            const result = await deleteTaskRemote(id).unwrap();
-            console.log('✅ useTasks: Task deleted from Firebase:', result);
+            await deleteTaskRemote(id).unwrap();
           } catch (error: any) {
-            console.error(
-              '❌ useTasks: Failed to delete from Firebase:',
-              error,
-            );
             console.error('useTasks: Delete error details:', {
               message: error?.message,
               status: error?.status,
@@ -131,11 +113,11 @@ export const useTasks = () => {
           console.log('useTasks: Offline mode - task deleted locally only');
         }
       } catch (error) {
-        console.error('❌ useTasks: Failed to delete task:', error);
+        console.error('useTasks: Failed to delete task:', error);
         throw error;
       }
     },
-    [isOnline, deleteTaskRemote, dispatch],
+    [isOnline, deleteTaskRemote, dispatch]
   );
 
   const handleToggleStatus = useCallback(
@@ -147,28 +129,24 @@ export const useTasks = () => {
           try {
             console.log('useTasks: handleToggleStatus - syncing to Firebase');
             const result = await toggleStatusRemote(id).unwrap();
-            console.log(
-              '✅ useTasks: Task status toggled in Firebase:',
-              result,
-            );
+            console.log('✅ useTasks: Task status toggled in Firebase:', result);
           } catch (error: any) {
-            console.error('❌ useTasks: Failed to toggle in Firebase:', error);
+            console.error('useTasks: Failed to toggle in Firebase:', error);
             console.error('useTasks: Toggle error details:', {
               message: error?.message,
               status: error?.status,
             });
-            // Revert local change if remote fails
             dispatch(toggleStatusLocal(id));
           }
         } else {
           console.log('useTasks: Offline mode - status toggled locally only');
         }
       } catch (error) {
-        console.error('❌ useTasks: Failed to toggle task status:', error);
+        console.error('useTasks: Failed to toggle task status:', error);
         throw error;
       }
     },
-    [isOnline, toggleStatusRemote, dispatch],
+    [isOnline, toggleStatusRemote, dispatch]
   );
 
   return {

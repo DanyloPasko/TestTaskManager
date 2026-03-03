@@ -22,24 +22,22 @@ export default function TaskListScreen({ navigation }: Props) {
 
   useEffect(() => {
     return navigation.addListener('focus', () => {
-      console.log('📱 TaskListScreen: Focus, isOnline:', isOnline);
       if (isOnline && refetch) {
         try {
           refetch();
         } catch (error) {
-          console.log('📱 TaskListScreen: Refetch not available yet');
+          console.log('TaskListScreen: Refetch not available yet');
         }
       }
     });
   }, [navigation, isOnline, refetch]);
 
   const handleRefresh = () => {
-    console.log('🔄 Manual refresh');
     if (refetch && isOnline) {
       try {
         refetch();
       } catch (error) {
-        console.error('🔄 Refresh failed:', error);
+        console.error('Refresh failed:', error);
       }
     }
   };
