@@ -4,7 +4,6 @@ import { Task } from '../types/task';
 import {
   setStatusFilter,
   setPriorityFilter,
-  setCategoryFilter,
   setSearchText,
   setPage,
   setPageSize,
@@ -75,13 +74,6 @@ export const useFilters = () => {
     [dispatch]
   );
 
-  const handleCategoryFilterChange = useCallback(
-    (category: string) => {
-      dispatch(setCategoryFilter(category));
-    },
-    [dispatch]
-  );
-
   const handleSearchChange = useCallback(
     (text: string) => {
       dispatch(setSearchText(text));
@@ -125,7 +117,6 @@ export const useFilters = () => {
     totalPages,
     onStatusFilterChange: handleStatusFilterChange,
     onPriorityFilterChange: handlePriorityFilterChange,
-    onCategoryFilterChange: handleCategoryFilterChange,
     onSearchChange: handleSearchChange,
     onPageChange: handlePageChange,
     onPageSizeChange: handlePageSizeChange,

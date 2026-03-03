@@ -1,4 +1,4 @@
-import React, {useEffect} from 'react';
+import {useEffect} from 'react';
 import {ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../navigation/RootNavigation';
@@ -8,7 +8,6 @@ import {Palette, useTheme} from '../theme/designSystem';
 import {useTasks} from '../hooks/useTasks';
 import {SyncIndicator} from '../components/SyncIndicator';
 import SearchBar from '../components/SearchBar';
-import CategoryFilter from '../components/CategoryFilter';
 import StatusPriorityFilter from '../components/StatusPriorityFilter';
 import Pagination from '../components/Pagination';
 import {useFilters} from '../hooks/useFilters';
@@ -51,7 +50,6 @@ export default function TaskListScreen({ navigation }: Props) {
       <SearchBar />
       <StatusPriorityFilter type="status" />
       <StatusPriorityFilter type="priority" />
-      <CategoryFilter />
 
       {isLoading ? (
         <View style={styles.loadingContainer}>

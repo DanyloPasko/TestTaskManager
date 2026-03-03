@@ -1,12 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { TaskFilter, PaginationState } from '../types/category';
 
-interface FilterState {
-  filters: TaskFilter;
-  pagination: PaginationState;
-}
 
-const initialState: FilterState = {
+const initialState = {
   filters: {
     status: 'all',
     priority: 'all',
@@ -26,16 +21,11 @@ const filterSlice = createSlice({
   reducers: {
     setStatusFilter: (state, action: PayloadAction<'pending' | 'completed' | 'all'>) => {
       state.filters.status = action.payload;
-      state.pagination.page = 1; // Reset to first page
+      state.pagination.page = 1;
     },
 
     setPriorityFilter: (state, action: PayloadAction<'low' | 'medium' | 'high' | 'all'>) => {
       state.filters.priority = action.payload;
-      state.pagination.page = 1;
-    },
-
-    setCategoryFilter: (state, action: PayloadAction<string>) => {
-      state.filters.category = action.payload;
       state.pagination.page = 1;
     },
 
@@ -72,7 +62,6 @@ const filterSlice = createSlice({
 export const {
   setStatusFilter,
   setPriorityFilter,
-  setCategoryFilter,
   setSearchText,
   setPage,
   setPageSize,

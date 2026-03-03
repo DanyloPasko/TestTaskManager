@@ -2,7 +2,6 @@ import { configureStore } from '@reduxjs/toolkit';
 import { persistStore, persistReducer } from 'redux-persist';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import taskReducer from './taskSlice';
-import categoryReducer from './categorySlice';
 import filterReducer from './filterSlice';
 import themeReducer from './themeSlice.ts';
 import { combineReducers } from 'redux';
@@ -18,7 +17,6 @@ const persistConfig = {
 
 const rootReducer = combineReducers({
   tasks: taskReducer,
-  categories: categoryReducer,
   filters: filterReducer,
   theme: themeReducer,
   [tasksApi.reducerPath]: tasksApi.reducer,
@@ -38,7 +36,6 @@ export const store = configureStore({
 
 export const persistor = persistStore(store);
 
-// Enable refetchOnFocus and refetchOnReconnect
 setupListeners(store.dispatch);
 
 export type RootState = ReturnType<typeof store.getState>;

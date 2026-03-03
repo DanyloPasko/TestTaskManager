@@ -15,7 +15,6 @@ import {Priority} from '../types/task';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Palette, useTheme} from '../theme/designSystem.ts';
 import {useTasks} from '../hooks/useTasks';
-import {useCategories} from '../hooks/useCategories';
 import {useImagePicker} from '../hooks/useImagePicker';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TaskForm'>;
@@ -25,10 +24,7 @@ export default function TaskFormScreen({ navigation, route }: Props) {
   const styles = useStyles(palette);
   const editingTask = route.params?.task;
   const { createTask, updateTask, isCreating, isUpdating } = useTasks();
-  const { categories } = useCategories();
   const { pickImage } = useImagePicker();
-
-  console.log('🏗️ TaskFormScreen: categories count:', categories.length, 'categories:', categories);
 
   const [title, setTitle] = useState(editingTask?.title || '');
   const [description, setDescription] = useState(
@@ -37,9 +33,7 @@ export default function TaskFormScreen({ navigation, route }: Props) {
   const [priority, setPriority] = useState<Priority>(
     editingTask?.priority || 'medium'
   );
-  const [category, setCategory] = useState(editingTask?.category || '');
   const [imageUri, setImageUri] = useState(editingTask?.imageUri || '');
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
 
   useEffect(() => {
     if (editingTask) {
@@ -76,23 +70,19 @@ export default function TaskFormScreen({ navigation, route }: Props) {
 
     try {
       if (editingTask) {
-        // Обновляем существующую задачу
         await updateTask(editingTask.id, {
           title,
           description,
           priority,
           status: editingTask.status,
-          category: category || undefined,
           imageUri: imageUri || undefined,
         });
       } else {
-        // Создаем новую задачу
         await createTask({
           title,
           description,
           priority,
           status: 'pending',
-          category: category || undefined,
           imageUri: imageUri || undefined,
         });
       }
@@ -147,45 +137,6 @@ export default function TaskFormScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           ))}
         </View>
-
-        <Text style={styles.label}>Category</Text>
-        <TouchableOpacity
-          style={[styles.input, styles.categoryPicker]}
-          onPress={() => {
-            console.log('📂 TaskFormScreen: Category button pressed, current categories:', categories.length);
-            setShowCategoryPicker(!showCategoryPicker);
-          }}
-        >
-          <Text style={styles.categoryPickerText}>
-            {category
-              ? categories.find((c) => c.id === category)?.name || 'Select category'
-              : 'Select category'}
-          </Text>
-        </TouchableOpacity>
-
-        {showCategoryPicker && (
-          <View style={styles.categoryDropdown}>
-            {categories.map((cat) => (
-              <TouchableOpacity
-                key={cat.id}
-                style={styles.categoryOption}
-                onPress={() => {
-                  setCategory(cat.id);
-                  setShowCategoryPicker(false);
-                }}
-              >
-                <View
-                  style={[
-                    styles.categoryDot,
-                    { backgroundColor: cat.color },
-                  ]}
-                />
-                <Text style={styles.categoryOptionText}>{cat.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
         <Text style={styles.label}>Image</Text>
         {imageUri ? (
           <View style={styles.imageContainer}>
