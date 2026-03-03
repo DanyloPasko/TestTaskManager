@@ -9,20 +9,18 @@ import {
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../navigation/RootNavigation';
-import {useDispatch} from 'react-redux';
-import {addTask, updateTask} from '../store/taskSlice';
-import {Priority, Task} from '../types/Task';
-import {v4 as uuid} from 'uuid';
+import {Priority} from '../types/task';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Palette, useTheme} from '../theme/designSystem.ts';
+import {useTasks} from '../hooks/useTasks';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TaskForm'>;
 
 export default function TaskFormScreen({ navigation, route }: Props) {
-  const dispatch = useDispatch();
   const { palette } = useTheme();
   const styles = useStyles(palette);
   const editingTask = route.params?.task;
+  const { createTask, updateTask, isCreating, isUpdating } = useTasks();
 
   const [title, setTitle] = useState(editingTask?.title || '');
   const [description, setDescription] = useState(
@@ -38,27 +36,35 @@ export default function TaskFormScreen({ navigation, route }: Props) {
     }
   }, [editingTask, navigation]);
 
-  const onSave = () => {
+  const onSave = async () => {
     if (!title.trim()) {
       Alert.alert('Validation', 'Title is required');
       return;
     }
 
-    const task: Task = {
-      id: editingTask?.id || uuid(),
-      title,
-      description,
-      priority,
-      status: editingTask?.status || 'pending',
-    };
-
-    if (editingTask) {
-      dispatch(updateTask(task));
-    } else {
-      dispatch(addTask(task));
+    try {
+      if (editingTask) {
+        // Обновляем существующую задачу
+        await updateTask(editingTask.id, {
+          title,
+          description,
+          priority,
+          status: editingTask.status,
+        });
+      } else {
+        // Создаем новую задачу
+        await createTask({
+          title,
+          description,
+          priority,
+          status: 'pending',
+        });
+      }
+      navigation.goBack();
+    } catch (error) {
+      console.error('Failed to save task:', error);
+      Alert.alert('Error', 'Failed to save task');
     }
-
-    navigation.goBack();
   };
 
   return (
@@ -104,8 +110,14 @@ export default function TaskFormScreen({ navigation, route }: Props) {
         ))}
       </View>
 
-      <TouchableOpacity style={styles.saveButton} onPress={onSave}>
-        <Text style={styles.saveButtonText}>Save Task</Text>
+      <TouchableOpacity
+        style={styles.saveButton}
+        onPress={onSave}
+        disabled={isCreating || isUpdating}
+      >
+        <Text style={styles.saveButtonText}>
+          {isCreating || isUpdating ? 'Saving...' : 'Save Task'}
+        </Text>
       </TouchableOpacity>
     </SafeAreaView>
   );

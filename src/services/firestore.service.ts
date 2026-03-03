@@ -1,7 +1,7 @@
-import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+import firestore, {FirebaseFirestoreTypes} from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
-import { Task } from '../types/task';
-import { FIRESTORE_COLLECTIONS } from '../config/firebase';
+import {Task} from '../types/task';
+import {FIRESTORE_COLLECTIONS} from '../config/firebase';
 
 export interface FirestoreTask extends Omit<Task, 'createdAt' | 'updatedAt'> {
   createdAt: any;
@@ -20,16 +20,6 @@ class FirestoreService {
     return timestamp || new Date().toISOString();
   }
 
-  // Convert Task to Firestore format
-  private toFirestoreTask(task: Task): FirestoreTask {
-    return {
-      ...task,
-      createdAt: firestore.FieldValue.serverTimestamp(),
-      updatedAt: firestore.FieldValue.serverTimestamp(),
-      syncStatus: 'synced',
-    };
-  }
-
   // Convert Firestore task to app Task format
   private fromFirestoreTask(doc: FirebaseFirestoreTypes.QueryDocumentSnapshot<FirebaseFirestoreTypes.DocumentData>): Task {
     const data = doc.data() as FirestoreTask;
@@ -44,6 +34,7 @@ class FirestoreService {
   // Create a new task
   async createTask(task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Promise<Task> {
     try {
+      console.log('🔥 Firestore: Creating task...', task);
       const docRef = await this.tasksCollection.add({
         ...task,
         createdAt: firestore.FieldValue.serverTimestamp(),
@@ -51,10 +42,11 @@ class FirestoreService {
         syncStatus: 'synced',
       });
 
+      console.log('✅ Firestore: Task created with ID:', docRef.id);
       const doc = await docRef.get();
       return this.fromFirestoreTask(doc as FirebaseFirestoreTypes.QueryDocumentSnapshot);
     } catch (error) {
-      console.error('Error creating task:', error);
+      console.error('❌ Firestore: Error creating task:', error);
       throw error;
     }
   }
@@ -62,13 +54,15 @@ class FirestoreService {
   // Get all tasks
   async getTasks(): Promise<Task[]> {
     try {
+      console.log('🔥 Firestore: Fetching all tasks...');
       const snapshot = await this.tasksCollection
         .orderBy('createdAt', 'desc')
         .get();
 
+      console.log('✅ Firestore: Fetched', snapshot.docs.length, 'tasks');
       return snapshot.docs.map(doc => this.fromFirestoreTask(doc as FirebaseFirestoreTypes.QueryDocumentSnapshot));
     } catch (error) {
-      console.error('Error fetching tasks:', error);
+      console.error('❌ Firestore: Error fetching tasks:', error);
       throw error;
     }
   }
@@ -90,13 +84,15 @@ class FirestoreService {
   // Update task
   async updateTask(id: string, updates: Partial<Task>): Promise<void> {
     try {
+      console.log('🔥 Firestore: Updating task', id, updates);
       await this.tasksCollection.doc(id).update({
         ...updates,
         updatedAt: firestore.FieldValue.serverTimestamp(),
         syncStatus: 'synced',
       });
+      console.log('✅ Firestore: Task updated:', id);
     } catch (error) {
-      console.error('Error updating task:', error);
+      console.error('❌ Firestore: Error updating task:', error);
       throw error;
     }
   }
@@ -104,30 +100,32 @@ class FirestoreService {
   // Delete task
   async deleteTask(id: string): Promise<void> {
     try {
+      console.log('🔥 Firestore: Deleting task', id);
       await this.tasksCollection.doc(id).delete();
+      console.log('✅ Firestore: Task deleted:', id);
     } catch (error) {
-      console.error('Error deleting task:', error);
+      console.error('❌ Firestore: Error deleting task:', error);
       throw error;
     }
   }
 
   // Subscribe to tasks changes (real-time updates)
   subscribeToTasks(callback: (tasks: Task[]) => void): () => void {
-    const unsubscribe = this.tasksCollection
-      .orderBy('createdAt', 'desc')
-      .onSnapshot(
-        snapshot => {
-          const tasks = snapshot.docs.map(doc =>
-            this.fromFirestoreTask(doc as FirebaseFirestoreTypes.QueryDocumentSnapshot)
-          );
-          callback(tasks);
-        },
-        error => {
-          console.error('Error in tasks subscription:', error);
-        }
-      );
 
-    return unsubscribe;
+
+    return this.tasksCollection.orderBy('createdAt', 'desc').onSnapshot(
+      snapshot => {
+        const tasks = snapshot.docs.map(doc =>
+          this.fromFirestoreTask(
+            doc as FirebaseFirestoreTypes.QueryDocumentSnapshot,
+          ),
+        );
+        callback(tasks);
+      },
+      error => {
+        console.error('Error in tasks subscription:', error);
+      },
+    );
   }
 
   // Upload image to Firebase Storage
@@ -137,9 +135,9 @@ class FirestoreService {
       const reference = storage().ref(filename);
 
       await reference.putFile(imageUri);
-      const url = await reference.getDownloadURL();
 
-      return url;
+
+      return await reference.getDownloadURL();
     } catch (error) {
       console.error('Error uploading image:', error);
       throw error;

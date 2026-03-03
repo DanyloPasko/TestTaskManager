@@ -1,33 +1,73 @@
-import React from 'react';
-import { FlatList, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useSelector } from 'react-redux';
-import { RootState } from '../store/store';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/RootNavigation';
+import React, {useEffect} from 'react';
+import {ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {NativeStackScreenProps} from '@react-navigation/native-stack';
+import {RootStackParamList} from '../navigation/RootNavigation';
 import TaskItem from '../components/TaskItem';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Palette, useTheme } from '../theme/designSystem';
+import {SafeAreaView} from 'react-native-safe-area-context';
+import {Palette, useTheme} from '../theme/designSystem';
+import {useTasks} from '../hooks/useTasks';
+import {SyncIndicator} from '../components/SyncIndicator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TaskList'>;
 
 export default function TaskListScreen({ navigation }: Props) {
   const { palette } = useTheme();
   const styles = useStyles(palette);
-  const tasks = useSelector((state: RootState) => state.tasks.list);
+  const { tasks, isLoading, isOnline, refetch } = useTasks();
+
+  useEffect(() => {
+    return navigation.addListener('focus', () => {
+      console.log('📱 TaskListScreen: Focus, isOnline:', isOnline);
+      // Refetch only if we're online and refetch is available
+      if (isOnline && refetch) {
+        try {
+          refetch();
+        } catch (error) {
+          console.log('📱 TaskListScreen: Refetch not available yet');
+        }
+      }
+    });
+  }, [navigation, isOnline, refetch]);
+
+  const handleRefresh = () => {
+    console.log('🔄 Manual refresh');
+    if (refetch && isOnline) {
+      try {
+        refetch();
+      } catch (error) {
+        console.error('🔄 Refresh failed:', error);
+      }
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <FlatList
-        data={tasks}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TaskItem
-            task={item}
-            onPress={() => navigation.navigate('TaskForm', { task: item })}
-          />
-        )}
-        ListEmptyComponent={<Text style={styles.empty}>No tasks yet</Text>}
-      />
+      <SyncIndicator showDetails={true} />
+
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={palette.primary} />
+          <Text style={styles.loadingText}>Loading tasks...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={tasks}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <TaskItem
+              task={item}
+              onPress={() => navigation.navigate('TaskForm', { task: item })}
+            />
+          )}
+          ListEmptyComponent={
+            <Text style={styles.empty}>
+              {isOnline ? 'No tasks in Firebase' : 'No local tasks'}
+            </Text>
+          }
+          onRefresh={handleRefresh}
+          refreshing={isLoading}
+        />
+      )}
 
       <TouchableOpacity
         style={styles.addButton}
@@ -42,6 +82,16 @@ export default function TaskListScreen({ navigation }: Props) {
 const useStyles = (palette: Palette) =>
   StyleSheet.create({
     container: { flex: 1, padding: 16, backgroundColor: palette.background },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    loadingText: {
+      marginTop: 12,
+      fontSize: 16,
+      color: palette.text,
+    },
     empty: {
       textAlign: 'center',
       marginTop: 32,

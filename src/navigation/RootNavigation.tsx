@@ -2,7 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 import TaskListScreen from '../screens/TaskListScreen';
 import TaskFormScreen from '../screens/TaskFormScreen';
-import { Task } from '../types/Task';
+import { Task } from '../types/task';
 
 export type RootStackParamList = {
   TaskList: undefined;

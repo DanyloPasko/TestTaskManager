@@ -1,9 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Task } from '../types/Task';
+import { StyleSheet, Text, TouchableOpacity, View, Alert } from 'react-native';
+import { Task } from '../types/task';
 import { Palette, useTheme } from '../theme/designSystem';
-import { useDispatch } from 'react-redux';
-import { deleteTask, toggleStatus } from '../store/taskSlice';
+import { useTasks } from '../hooks/useTasks';
 
 type Props = {
   task: Task;
@@ -15,14 +14,39 @@ type PriorityKey = 'priority_low' | 'priority_medium' | 'priority_high';
 export default function TaskItem({ task, onPress }: Props) {
   const { palette } = useTheme();
   const styles = useStyles(palette);
-  const dispatch = useDispatch();
+  const { deleteTask, toggleStatus } = useTasks();
 
   const handleDelete = () => {
-    dispatch(deleteTask(task.id));
+    Alert.alert(
+      'Delete Task',
+      'Are you sure?',
+      [
+        { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+        {
+          text: 'Delete',
+          onPress: async () => {
+            try {
+              await deleteTask(task.id);
+              console.log('✅ Task deleted:', task.id);
+            } catch (error) {
+              console.error('❌ Failed to delete task:', error);
+              Alert.alert('Error', 'Failed to delete task');
+            }
+          },
+          style: 'destructive',
+        },
+      ]
+    );
   };
 
-  const handleToggleStatus = () => {
-    dispatch(toggleStatus(task.id));
+  const handleToggleStatus = async () => {
+    try {
+      await toggleStatus(task.id);
+      console.log('✅ Task status toggled:', task.id);
+    } catch (error) {
+      console.error('❌ Failed to toggle task status:', error);
+      Alert.alert('Error', 'Failed to toggle task status');
+    }
   };
 
   const isCompleted = task.status !== 'pending';
