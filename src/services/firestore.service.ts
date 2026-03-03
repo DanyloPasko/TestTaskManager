@@ -1,4 +1,4 @@
-import firestore from '@react-native-firebase/firestore';
+import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
 import { Task } from '../types/task';
 import { FIRESTORE_COLLECTIONS } from '../config/firebase';
@@ -31,7 +31,7 @@ class FirestoreService {
   }
 
   // Convert Firestore task to app Task format
-  private fromFirestoreTask(doc: firestore.QueryDocumentSnapshot<firestore.DocumentData>): Task {
+  private fromFirestoreTask(doc: FirebaseFirestoreTypes.QueryDocumentSnapshot<FirebaseFirestoreTypes.DocumentData>): Task {
     const data = doc.data() as FirestoreTask;
     return {
       ...data,
@@ -42,7 +42,7 @@ class FirestoreService {
   }
 
   // Create a new task
-  async createTask(task: Omit<Task, 'createdAt' | 'updatedAt'>): Promise<Task> {
+  async createTask(task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>): Promise<Task> {
     try {
       const docRef = await this.tasksCollection.add({
         ...task,
@@ -52,7 +52,7 @@ class FirestoreService {
       });
 
       const doc = await docRef.get();
-      return this.fromFirestoreTask(doc as firestore.QueryDocumentSnapshot);
+      return this.fromFirestoreTask(doc as FirebaseFirestoreTypes.QueryDocumentSnapshot);
     } catch (error) {
       console.error('Error creating task:', error);
       throw error;
@@ -66,7 +66,7 @@ class FirestoreService {
         .orderBy('createdAt', 'desc')
         .get();
 
-      return snapshot.docs.map(doc => this.fromFirestoreTask(doc as firestore.QueryDocumentSnapshot));
+      return snapshot.docs.map(doc => this.fromFirestoreTask(doc as FirebaseFirestoreTypes.QueryDocumentSnapshot));
     } catch (error) {
       console.error('Error fetching tasks:', error);
       throw error;
@@ -80,7 +80,7 @@ class FirestoreService {
       if (!doc.exists) {
         return null;
       }
-      return this.fromFirestoreTask(doc as firestore.QueryDocumentSnapshot);
+      return this.fromFirestoreTask(doc as FirebaseFirestoreTypes.QueryDocumentSnapshot);
     } catch (error) {
       console.error('Error fetching task:', error);
       throw error;
@@ -118,7 +118,7 @@ class FirestoreService {
       .onSnapshot(
         snapshot => {
           const tasks = snapshot.docs.map(doc =>
-            this.fromFirestoreTask(doc as firestore.QueryDocumentSnapshot)
+            this.fromFirestoreTask(doc as FirebaseFirestoreTypes.QueryDocumentSnapshot)
           );
           callback(tasks);
         },
