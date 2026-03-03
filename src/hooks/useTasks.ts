@@ -45,10 +45,7 @@ export const useTasks = () => {
       try {
         if (isOnline) {
           try {
-            console.log('useTasks: handleCreateTask - online mode, data:', taskData);
             const createdTask = await createTaskRemote(taskData).unwrap();
-            console.log('useTasks: Task created in Firebase:', createdTask);
-            // Update local state with the created task from Firebase
             dispatch(setTasks([...localTasks, createdTask]));
           } catch (error: any) {
             console.error('useTasks: Failed to sync to Firebase:', error);
@@ -57,12 +54,9 @@ export const useTasks = () => {
               status: error?.status,
               data: error?.data,
             });
-            // Add task locally if Firebase fails
             dispatch(addTaskLocal(taskData));
           }
         } else {
-          // Add task locally if offline
-          console.log('useTasks: handleCreateTask - offline mode');
           dispatch(addTaskLocal(taskData));
         }
       } catch (error) {
