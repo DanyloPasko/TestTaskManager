@@ -12,7 +12,6 @@ import {useAppDispatch, useAppSelector} from './redux';
 import {
   addTaskLocal,
   deleteTaskLocal,
-  setTasks,
   toggleStatusLocal,
   updateTaskLocal,
 } from '../store/taskSlice';
@@ -43,8 +42,7 @@ export const useTasks = () => {
       try {
         if (isOnline) {
           try {
-            const createdTask = await createTaskRemote(taskData).unwrap();
-            dispatch(setTasks([...localTasks, createdTask]));
+            await createTaskRemote(taskData).unwrap();
           } catch (error: any) {
             console.error('useTasks: Failed to sync to Firebase:', error);
             console.error('useTasks: Firebase error details:', {
@@ -62,7 +60,7 @@ export const useTasks = () => {
         throw error;
       }
     },
-    [isOnline, createTaskRemote, dispatch, localTasks],
+    [isOnline, createTaskRemote, dispatch],
   );
 
   const handleUpdateTask = useCallback(

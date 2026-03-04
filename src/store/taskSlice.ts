@@ -68,19 +68,29 @@ const taskSlice = createSlice({
       }
     },
 
-    markAsSynced: (state, action: PayloadAction<string>) => {
-      const task = state.list.find(t => t.id === action.payload);
-      if (task) {
-        task.syncStatus = 'synced';
-      }
+    markAsSynced: (
+      state,
+      action: PayloadAction<{oldId: string; newId: string}>,
+    ) => {
+      const task = state.list.find(t => t.id === action.payload.oldId);
+      if (!task) {return;}
 
-      state.pendingSync = state.pendingSync.filter(id => id !== action.payload);
+      task.id = action.payload.newId;
+      task.syncStatus = 'synced';
+
+      state.pendingSync = state.pendingSync.filter(
+        id => id !== action.payload.oldId,
+      );
     },
 
     markSyncError: (state, action: PayloadAction<string>) => {
       const task = state.list.find(t => t.id === action.payload);
-      if (task) {
-        task.syncStatus = 'error';
+      if (!task) {return;}
+
+      task.syncStatus = 'error';
+
+      if (!state.pendingSync.includes(task.id)) {
+        state.pendingSync.push(task.id);
       }
     },
 

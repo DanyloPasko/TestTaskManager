@@ -6,9 +6,6 @@ import 'react-native-get-random-values';
 import { PersistGate } from 'redux-persist/integration/react';
 import { useTheme } from './src/theme/designSystem.ts';
 
-// Firebase is automatically initialized by @react-native-firebase/app
-// No need for manual initialization when using google-services.json
-
 function InnerApp() {
   const { palette, effectiveTheme } = useTheme();
 

@@ -7,9 +7,6 @@ interface SyncIndicatorProps {
   showDetails?: boolean;
 }
 
-/**
- * Component that displays sync status and allows manual sync trigger
- */
 export const SyncIndicator: React.FC<SyncIndicatorProps> = ({ showDetails = false }) => {
   const { palette } = useTheme();
   const styles = useStyles(palette);
@@ -27,7 +24,7 @@ export const SyncIndicator: React.FC<SyncIndicatorProps> = ({ showDetails = fals
     if (!isOnline) {return '#f44336';}
     if (syncError) {return '#ff9800';}
     if (hasPendingChanges) {return '#ff9800';}
-    return '#4caf50'; // Green - synced
+    return '#4caf50';
   };
 
   const getStatusText = () => {
