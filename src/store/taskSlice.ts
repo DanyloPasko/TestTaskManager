@@ -94,15 +94,6 @@ const taskSlice = createSlice({
       }
     },
 
-    markAllAsSynced: state => {
-      state.list.forEach(task => {
-        task.syncStatus = 'synced';
-      });
-
-      state.pendingSync = [];
-      state.lastSyncTime = new Date().toISOString();
-    },
-
     setTasks: (state, action: PayloadAction<Task[]>) => {
       state.list = action.payload;
       state.pendingSync = [];
@@ -117,7 +108,6 @@ export const {
   toggleStatusLocal,
   updateTaskLocal,
   markAsSynced,
-  markAllAsSynced,
   markSyncError,
   setTasks,
 } = taskSlice.actions;

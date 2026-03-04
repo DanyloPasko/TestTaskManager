@@ -8,9 +8,6 @@ export interface ImagePickerResult {
   size: number;
 }
 
-/**
- * Hook for picking images from device gallery
- */
 export const useImagePicker = () => {
   const pickImage = useCallback(async (): Promise<ImagePickerResult | null> => {
     return new Promise((resolve) => {
@@ -26,10 +23,8 @@ export const useImagePicker = () => {
         console.log('📸 Image picker response:', response);
 
         if (response.didCancel) {
-          console.log('📸 Image picker cancelled');
           resolve(null);
         } else if (response.errorCode) {
-          console.error('❌ Image picker error:', response.errorCode, response.errorMessage);
           resolve(null);
         } else if (response.assets && response.assets[0]) {
           const asset = response.assets[0];
@@ -41,7 +36,6 @@ export const useImagePicker = () => {
             size: asset.fileSize || 0,
           });
         } else {
-          console.log('📸 No asset found in response');
           resolve(null);
         }
       });
@@ -49,41 +43,4 @@ export const useImagePicker = () => {
   }, []);
 
   return { pickImage };
-};
-
-/**
- * Hook for uploading images to Firebase Storage
- */
-export const useImageUpload = () => {
-  const uploadImage = useCallback(async (imageUri: string, taskId: string): Promise<string> => {
-    try {
-      console.log('📤 Uploading image for task:', taskId);
-      // This will be integrated with firestoreService.uploadImage
-      // For now, we'll just return the URI
-      return imageUri;
-    } catch (error) {
-      console.error('❌ Failed to upload image:', error);
-      throw error;
-    }
-  }, []);
-
-  return { uploadImage };
-};
-
-/**
- * Hook for deleting images from Firebase Storage
- */
-export const useImageDelete = () => {
-  const deleteImage = useCallback(async (imageUrl: string): Promise<void> => {
-    try {
-      console.log('🗑️ Deleting image:', imageUrl);
-      // This will be integrated with firestoreService.deleteImage
-      // For now, we'll just log it
-    } catch (error) {
-      console.error('❌ Failed to delete image:', error);
-      throw error;
-    }
-  }, []);
-
-  return { deleteImage };
 };

@@ -7,10 +7,6 @@ export interface NetworkStatus {
   type: string | null;
 }
 
-/**
- * Hook to monitor network connectivity status
- * @returns Current network status with connection state
- */
 export const useNetworkStatus = () => {
   const [networkStatus, setNetworkStatus] = useState<NetworkStatus>({
     isConnected: null,
@@ -19,7 +15,6 @@ export const useNetworkStatus = () => {
   });
 
   useEffect(() => {
-    // Get initial network state
     NetInfo.fetch().then(state => {
       setNetworkStatus({
         isConnected: state.isConnected,
@@ -28,7 +23,6 @@ export const useNetworkStatus = () => {
       });
     });
 
-    // Subscribe to network state updates
     const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
       setNetworkStatus({
         isConnected: state.isConnected,
