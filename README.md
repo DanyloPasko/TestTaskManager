@@ -7,7 +7,7 @@ A React Native task management application with Firebase integration, offline/on
 - ✅ Firebase/Firestore integration for cloud storage
 - ✅ Offline/online synchronization
 - ✅ RTK Query for efficient API management
-- ✅ Task categories and filtering
+- ✅ Task filtering
 - ✅ Image attachments for tasks
 - ✅ Redux Toolkit for state management
 - ✅ Dark/Light theme support
@@ -17,8 +17,6 @@ A React Native task management application with Firebase integration, offline/on
 
 - Node.js >= 18
 - Yarn or npm
-- Android Studio & Android SDK (for Android development)
-- Firebase project (see FIREBASE_SETUP.md)
 
 ## Getting Started
 
