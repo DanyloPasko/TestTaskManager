@@ -1,4 +1,5 @@
 import {useCallback} from 'react';
+import {v4 as uuid} from 'uuid';
 import {
   useCreateTaskMutation,
   useDeleteTaskMutation,
@@ -6,7 +7,7 @@ import {
   useToggleTaskStatusMutation,
   useUpdateTaskMutation,
 } from '../store/api/tasksApi';
-import {CreateTaskInput} from '../types/task';
+import {CreateTaskInput, Task} from '../types/task';
 import {useNetworkStatus} from './useNetworkStatus';
 import {useAppDispatch, useAppSelector} from './redux';
 import {
@@ -14,6 +15,8 @@ import {
   deleteTaskLocal,
   toggleStatusLocal,
   updateTaskLocal,
+  markAsSynced,
+  markSyncError,
 } from '../store/taskSlice';
 
 export const useTasks = () => {
@@ -21,11 +24,7 @@ export const useTasks = () => {
   const dispatch = useAppDispatch();
   const localTasks = useAppSelector(state => state.tasks.list);
 
-  const {
-    isLoading,
-    isError,
-    refetch,
-  } = useGetTasksQuery(undefined, {
+  const {isLoading, isError, refetch} = useGetTasksQuery(undefined, {
     skip: false,
   });
 
@@ -39,24 +38,29 @@ export const useTasks = () => {
 
   const handleCreateTask = useCallback(
     async (taskData: CreateTaskInput) => {
+      const now = new Date().toISOString();
+      const localId = uuid();
+
+      const newTask: Task = {
+        ...taskData,
+        id: localId,
+        createdAt: now,
+        updatedAt: now,
+        syncStatus: 'pending',
+      };
+
       try {
+        dispatch(addTaskLocal(newTask));
+
         if (isOnline) {
           try {
-            await createTaskRemote(taskData).unwrap();
-          } catch (error: any) {
-            console.error('useTasks: Failed to sync to Firebase:', error);
-            console.error('useTasks: Firebase error details:', {
-              message: error?.message,
-              status: error?.status,
-              data: error?.data,
-            });
-            dispatch(addTaskLocal(taskData));
+            const createdTask = await createTaskRemote(taskData).unwrap();
+            dispatch(markAsSynced({oldId: localId, newId: createdTask.id}));
+          } catch (error) {
+            dispatch(markSyncError(localId));
           }
-        } else {
-          dispatch(addTaskLocal(taskData));
         }
       } catch (error) {
-        console.error('useTasks: Failed to create task:', error);
         throw error;
       }
     },
@@ -69,18 +73,10 @@ export const useTasks = () => {
         dispatch(updateTaskLocal({id, updates}));
         if (isOnline) {
           try {
-            console.log('useTasks: handleUpdateTask - syncing to Firebase');
             await updateTaskRemote({id, updates}).unwrap();
-            console.log('useTasks: Task update synced to Firebase');
-          } catch (error: any) {
-            console.error(
-              'useTasks: Failed to sync update to Firebase:',
-              error,
-            );
-          }
+          } catch (error) {}
         }
       } catch (error) {
-        console.error('useTasks: Failed to update task:', error);
         throw error;
       }
     },
@@ -90,23 +86,13 @@ export const useTasks = () => {
   const handleDeleteTask = useCallback(
     async (id: string) => {
       try {
-        console.log('useTasks: handleDeleteTask called for ID:', id);
         dispatch(deleteTaskLocal(id));
         if (isOnline) {
           try {
             await deleteTaskRemote(id).unwrap();
-          } catch (error: any) {
-            console.error('useTasks: Delete error details:', {
-              message: error?.message,
-              status: error?.status,
-              data: error?.data,
-            });
-          }
-        } else {
-          console.log('useTasks: Offline mode - task deleted locally only');
+          } catch (error) {}
         }
       } catch (error) {
-        console.error('useTasks: Failed to delete task:', error);
         throw error;
       }
     },
@@ -116,29 +102,15 @@ export const useTasks = () => {
   const handleToggleStatus = useCallback(
     async (id: string) => {
       try {
-        console.log('useTasks: handleToggleStatus called for ID:', id);
         dispatch(toggleStatusLocal(id));
         if (isOnline) {
           try {
-            console.log('useTasks: handleToggleStatus - syncing to Firebase');
-            const result = await toggleStatusRemote(id).unwrap();
-            console.log(
-              '✅ useTasks: Task status toggled in Firebase:',
-              result,
-            );
-          } catch (error: any) {
-            console.error('useTasks: Failed to toggle in Firebase:', error);
-            console.error('useTasks: Toggle error details:', {
-              message: error?.message,
-              status: error?.status,
-            });
+            await toggleStatusRemote(id).unwrap();
+          } catch (error) {
             dispatch(toggleStatusLocal(id));
           }
-        } else {
-          console.log('useTasks: Offline mode - status toggled locally only');
         }
       } catch (error) {
-        console.error('useTasks: Failed to toggle task status:', error);
         throw error;
       }
     },

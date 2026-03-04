@@ -1,6 +1,5 @@
 import {createSlice, PayloadAction} from '@reduxjs/toolkit';
 import {Task, CreateTaskInput} from '../types/task';
-import {v4 as uuid} from 'uuid';
 
 interface TaskState {
   list: Task[];
@@ -18,19 +17,11 @@ const taskSlice = createSlice({
   name: 'tasks',
   initialState,
   reducers: {
-    addTaskLocal: (state, action: PayloadAction<CreateTaskInput>) => {
-      const now = new Date().toISOString();
-
-      const newTask: Task = {
-        ...action.payload,
-        id: uuid(),
-        createdAt: now,
-        updatedAt: now,
-        syncStatus: 'pending',
-      };
-
-      state.list.push(newTask);
-      state.pendingSync.push(newTask.id);
+    addTaskLocal: (state, action: PayloadAction<Task>) => {
+      state.list.push(action.payload);
+      if (action.payload.syncStatus === 'pending') {
+        state.pendingSync.push(action.payload.id);
+      }
     },
 
     deleteTaskLocal: (state, action: PayloadAction<string>) => {
@@ -40,7 +31,9 @@ const taskSlice = createSlice({
 
     toggleStatusLocal: (state, action: PayloadAction<string>) => {
       const task = state.list.find(t => t.id === action.payload);
-      if (!task) {return;}
+      if (!task) {
+        return;
+      }
 
       task.status = task.status === 'pending' ? 'completed' : 'pending';
       task.updatedAt = new Date().toISOString();
@@ -56,7 +49,9 @@ const taskSlice = createSlice({
       action: PayloadAction<{id: string; updates: Partial<CreateTaskInput>}>,
     ) => {
       const task = state.list.find(t => t.id === action.payload.id);
-      if (!task) {return;}
+      if (!task) {
+        return;
+      }
 
       Object.assign(task, action.payload.updates, {
         updatedAt: new Date().toISOString(),
@@ -73,7 +68,9 @@ const taskSlice = createSlice({
       action: PayloadAction<{oldId: string; newId: string}>,
     ) => {
       const task = state.list.find(t => t.id === action.payload.oldId);
-      if (!task) {return;}
+      if (!task) {
+        return;
+      }
 
       task.id = action.payload.newId;
       task.syncStatus = 'synced';
@@ -85,7 +82,9 @@ const taskSlice = createSlice({
 
     markSyncError: (state, action: PayloadAction<string>) => {
       const task = state.list.find(t => t.id === action.payload);
-      if (!task) {return;}
+      if (!task) {
+        return;
+      }
 
       task.syncStatus = 'error';
 
