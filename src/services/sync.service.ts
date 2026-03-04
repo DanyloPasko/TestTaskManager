@@ -1,11 +1,6 @@
 import firestoreService from './firestore.service';
 import {store} from '../store/store';
-import {
-  addTaskLocal,
-  markAsSynced,
-  markSyncError,
-  setTasks,
-} from '../store/taskSlice';
+import {markAsSynced, markSyncError, setTasks} from '../store/taskSlice';
 import {CreateTaskInput, Task} from '../types/task';
 
 let isSyncing = false;
@@ -19,60 +14,62 @@ const mapTaskToDto = (task: Task): CreateTaskInput => ({
   imageUri: task.imageUri,
 });
 
-export const createLocalTask = (taskData: CreateTaskInput) => {
-  store.dispatch(addTaskLocal(taskData));
-};
+const pushPendingTasks = async () => {
+  const state = store.getState();
+  const pendingIds = [...state.tasks.pendingSync];
 
-const syncPendingTasks = async (): Promise<void> => {
-  if (isSyncing) {return;}
-  isSyncing = true;
-  try {
-    const state = store.getState();
-    const pendingIds = [...state.tasks.pendingSync];
+  for (const id of pendingIds) {
+    const currentState = store.getState();
+    const task = currentState.tasks.list.find(t => t.id === id);
+    if (!task) {continue;}
 
-    for (const taskId of pendingIds) {
-      const task = state.tasks.list.find(t => t.id === taskId);
-      if (!task) {continue;}
+    try {
+      const dto = mapTaskToDto(task);
 
-      try {
-        const dto = mapTaskToDto(task);
+      if (task.syncStatus === 'pending') {
         const created = await firestoreService.createTask(dto);
-        store.dispatch(markAsSynced({oldId: task.id, newId: created.id}));
-      } catch (error) {
-        console.error('Failed to sync task', task.id, error);
-        store.dispatch(markSyncError(task.id));
+
+        store.dispatch(
+          markAsSynced({
+            oldId: task.id,
+            newId: created.id,
+          }),
+        );
       }
+    } catch {
+      store.dispatch(markSyncError(task.id));
     }
-  } finally {
-    isSyncing = false;
   }
 };
 
-const pullFromFirebase = async (): Promise<void> => {
+const pullAndMerge = async () => {
   const remoteTasks = await firestoreService.getTasks();
   const state = store.getState();
-  const pendingTasks = state.tasks.list.filter(t => t.syncStatus === 'pending');
-  const mergedTasks = [
-    ...remoteTasks.filter(t => !pendingTasks.find(p => p.id === t.id)),
-    ...pendingTasks,
+
+  const localPending = state.tasks.list.filter(
+    t => t.syncStatus === 'pending' || t.syncStatus === 'error',
+  );
+
+  const merged: Task[] = [
+    ...remoteTasks.filter(r => !localPending.find(l => l.id === r.id)),
+    ...localPending,
   ];
-  store.dispatch(setTasks(mergedTasks));
+
+  store.dispatch(setTasks(merged));
 };
 
-export const fullSync = async (): Promise<void> => {
+const fullSync = async (): Promise<void> => {
   if (isSyncing) {return;}
   isSyncing = true;
+
   try {
-    await syncPendingTasks();
-    await pullFromFirebase();
+    await pushPendingTasks();
+    await pullAndMerge();
   } finally {
     isSyncing = false;
   }
 };
 
 export default {
-  createLocalTask,
-  syncPendingTasks,
-  pullFromFirebase,
   fullSync,
 };
