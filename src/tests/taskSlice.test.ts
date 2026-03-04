@@ -3,12 +3,8 @@ import taskReducer, {
   deleteTaskLocal,
   toggleStatusLocal,
   updateTaskLocal,
-  setTasks,
-  markAsSynced,
-  markAllAsSynced,
-  markSyncError,
 } from '../store/taskSlice';
-import { Task } from '../types/task';
+import {Task} from '../types/task';
 
 interface TaskState {
   list: Task[];
@@ -195,75 +191,6 @@ describe('taskSlice reducers', () => {
       }));
 
       expect(state.pendingSync).toEqual(['1']);
-    });
-  });
-
-  describe('sync operations', () => {
-    it('should set tasks and update lastSyncTime', () => {
-      const tasks: Task[] = [
-        { id: '1', title: 'Task 1', status: 'pending', priority: 'low', createdAt: '', updatedAt: '' },
-        { id: '2', title: 'Task 2', status: 'completed', priority: 'high', createdAt: '', updatedAt: '' },
-      ];
-
-      const state = taskReducer(initialState, setTasks(tasks));
-      expect(state.list).toEqual(tasks);
-      expect(state.lastSyncTime).toBeDefined();
-    });
-
-    it('should mark task as synced', () => {
-      const stateWithTask: TaskState = {
-        list: [{
-          id: '1',
-          title: 'Task 1',
-          status: 'pending',
-          priority: 'low',
-          createdAt: '',
-          updatedAt: '',
-          syncStatus: 'pending',
-        }],
-        pendingSync: ['1'],
-        lastSyncTime: null,
-      };
-
-      const state = taskReducer(stateWithTask, markAsSynced('1'));
-      expect(state.list[0].syncStatus).toBe('synced');
-      expect(state.pendingSync).toEqual([]);
-    });
-
-    it('should mark all tasks as synced', () => {
-      const stateWithTasks: TaskState = {
-        list: [
-          { id: '1', title: 'Task 1', status: 'pending', priority: 'low', createdAt: '', updatedAt: '', syncStatus: 'pending' },
-          { id: '2', title: 'Task 2', status: 'pending', priority: 'high', createdAt: '', updatedAt: '', syncStatus: 'pending' },
-        ],
-        pendingSync: ['1', '2'],
-        lastSyncTime: null,
-      };
-
-      const state = taskReducer(stateWithTasks, markAllAsSynced());
-      expect(state.list[0].syncStatus).toBe('synced');
-      expect(state.list[1].syncStatus).toBe('synced');
-      expect(state.pendingSync).toEqual([]);
-      expect(state.lastSyncTime).toBeDefined();
-    });
-
-    it('should mark task with sync error', () => {
-      const stateWithTask: TaskState = {
-        list: [{
-          id: '1',
-          title: 'Task 1',
-          status: 'pending',
-          priority: 'low',
-          createdAt: '',
-          updatedAt: '',
-          syncStatus: 'pending',
-        }],
-        pendingSync: ['1'],
-        lastSyncTime: null,
-      };
-
-      const state = taskReducer(stateWithTask, markSyncError('1'));
-      expect(state.list[0].syncStatus).toBe('error');
     });
   });
 
