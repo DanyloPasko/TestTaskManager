@@ -56,8 +56,8 @@ const fromFirestoreTask = (
 
 const buildSafeUpdates = (
   updates: Partial<CreateTaskInput>,
-): FirebaseFirestoreTypes.UpdateData => {
-  const safeUpdates: FirebaseFirestoreTypes.UpdateData = {};
+): FirebaseFirestoreTypes.DocumentData => {
+  const safeUpdates: FirebaseFirestoreTypes.DocumentData = {};
   if (updates.title !== undefined) {
     safeUpdates.title = updates.title;
   }
