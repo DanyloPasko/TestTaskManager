@@ -1,4 +1,4 @@
-import {useCallback} from 'react';
+import {useCallback, useEffect} from 'react';
 import {v4 as uuid} from 'uuid';
 import {
   useCreateTaskMutation,
@@ -7,7 +7,7 @@ import {
   useToggleTaskStatusMutation,
   useUpdateTaskMutation,
 } from '../store/api/tasksApi';
-import {CreateTaskInput, Task} from '../types/task';
+import {CreateTaskInput, SyncStatus, Task} from '../types/task';
 import {useNetworkStatus} from './useNetworkStatus';
 import {useAppDispatch, useAppSelector} from './redux';
 import {
@@ -17,6 +17,7 @@ import {
   updateTaskLocal,
   markAsSynced,
   markSyncError,
+  setTasks,
 } from '../store/taskSlice';
 
 export const useTasks = () => {
@@ -24,8 +25,13 @@ export const useTasks = () => {
   const dispatch = useAppDispatch();
   const localTasks = useAppSelector(state => state.tasks.list);
 
-  const {isLoading, isError, refetch} = useGetTasksQuery(undefined, {
-    skip: false,
+  const {
+    data: remoteTasks,
+    isLoading,
+    isError,
+    refetch,
+  } = useGetTasksQuery(undefined, {
+    skip: !isOnline,
   });
 
   const [createTaskRemote, {isLoading: isCreating}] = useCreateTaskMutation();
@@ -35,6 +41,17 @@ export const useTasks = () => {
     useToggleTaskStatusMutation();
 
   const tasks = localTasks;
+
+  // hydrate local store from remote when online
+  useEffect(() => {
+    if (!isOnline || !remoteTasks) {
+      return;
+    }
+    if (!localTasks.length) {
+      // initial load from server
+      dispatch(setTasks(remoteTasks));
+    }
+  }, [isOnline, remoteTasks, localTasks.length, dispatch]);
 
   const handleCreateTask = useCallback(
     async (taskData: CreateTaskInput) => {
@@ -46,7 +63,7 @@ export const useTasks = () => {
         id: localId,
         createdAt: now,
         updatedAt: now,
-        syncStatus: 'pending',
+        syncStatus: SyncStatus.Pending,
       };
 
       try {

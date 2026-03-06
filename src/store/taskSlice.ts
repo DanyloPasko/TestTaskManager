@@ -1,15 +1,22 @@
 import {createSlice, PayloadAction} from '@reduxjs/toolkit';
-import {Task, CreateTaskInput} from '../types/task';
+import {
+  Task,
+  CreateTaskInput,
+  Status,
+  SyncStatus,
+} from '../types/task';
 
 interface TaskState {
   list: Task[];
   pendingSync: string[];
+  pendingDeletes: string[];
   lastSyncTime: string | null;
 }
 
 const initialState: TaskState = {
   list: [],
   pendingSync: [],
+  pendingDeletes: [],
   lastSyncTime: null,
 };
 
@@ -19,7 +26,7 @@ const taskSlice = createSlice({
   reducers: {
     addTaskLocal: (state, action: PayloadAction<Task>) => {
       state.list.push(action.payload);
-      if (action.payload.syncStatus === 'pending') {
+      if (action.payload.syncStatus === SyncStatus.Pending) {
         state.pendingSync.push(action.payload.id);
       }
     },
@@ -27,6 +34,9 @@ const taskSlice = createSlice({
     deleteTaskLocal: (state, action: PayloadAction<string>) => {
       state.list = state.list.filter(t => t.id !== action.payload);
       state.pendingSync = state.pendingSync.filter(id => id !== action.payload);
+      if (!state.pendingDeletes.includes(action.payload)) {
+        state.pendingDeletes.push(action.payload);
+      }
     },
 
     toggleStatusLocal: (state, action: PayloadAction<string>) => {
@@ -35,9 +45,10 @@ const taskSlice = createSlice({
         return;
       }
 
-      task.status = task.status === 'pending' ? 'completed' : 'pending';
+      task.status =
+        task.status === Status.Pending ? Status.Completed : Status.Pending;
       task.updatedAt = new Date().toISOString();
-      task.syncStatus = 'pending';
+      task.syncStatus = SyncStatus.Pending;
 
       if (!state.pendingSync.includes(task.id)) {
         state.pendingSync.push(task.id);
@@ -55,7 +66,7 @@ const taskSlice = createSlice({
 
       Object.assign(task, action.payload.updates, {
         updatedAt: new Date().toISOString(),
-        syncStatus: 'pending',
+        syncStatus: SyncStatus.Pending,
       });
 
       if (!state.pendingSync.includes(task.id)) {
@@ -73,7 +84,7 @@ const taskSlice = createSlice({
       }
 
       task.id = action.payload.newId;
-      task.syncStatus = 'synced';
+      task.syncStatus = SyncStatus.Synced;
 
       state.pendingSync = state.pendingSync.filter(
         id => id !== action.payload.oldId,
@@ -86,7 +97,7 @@ const taskSlice = createSlice({
         return;
       }
 
-      task.syncStatus = 'error';
+      task.syncStatus = SyncStatus.Error;
 
       if (!state.pendingSync.includes(task.id)) {
         state.pendingSync.push(task.id);
@@ -96,6 +107,7 @@ const taskSlice = createSlice({
     setTasks: (state, action: PayloadAction<Task[]>) => {
       state.list = action.payload;
       state.pendingSync = [];
+      state.pendingDeletes = [];
       state.lastSyncTime = new Date().toISOString();
     },
   },

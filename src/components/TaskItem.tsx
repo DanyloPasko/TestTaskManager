@@ -1,20 +1,20 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import {Alert, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
-import {Task} from '../types/task';
+import {Status, Task} from '../types/task';
 import {Palette, useTheme} from '../theme/designSystem';
-import {useTasks} from '../hooks/useTasks';
 
 type Props = {
   task: Task;
   onPress: () => void;
+  onDelete: (id: string) => Promise<void> | void;
+  onToggleStatus: (id: string) => Promise<void> | void;
 };
 
 type PriorityKey = 'priority_low' | 'priority_medium' | 'priority_high';
 
-export default function TaskItem({ task, onPress }: Props) {
-  const { palette } = useTheme();
-  const styles = useStyles(palette);
-  const { deleteTask, toggleStatus } = useTasks();
+export default function TaskItem({task, onPress, onDelete, onToggleStatus}: Props) {
+  const {palette} = useTheme();
+  const styles = useMemo(() => createStyles(palette), [palette]);
 
   const handleDelete = () => {
     Alert.alert(
@@ -26,7 +26,7 @@ export default function TaskItem({ task, onPress }: Props) {
           text: 'Delete',
           onPress: async () => {
             try {
-              await deleteTask(task.id);
+              await onDelete(task.id);
               console.log('✅ Task deleted:', task.id);
             } catch (error) {
               console.error('❌ Failed to delete task:', error);
@@ -41,7 +41,7 @@ export default function TaskItem({ task, onPress }: Props) {
 
   const handleToggleStatus = async () => {
     try {
-      await toggleStatus(task.id);
+      await onToggleStatus(task.id);
       console.log('✅ Task status toggled:', task.id);
     } catch (error) {
       console.error('❌ Failed to toggle task status:', error);
@@ -49,15 +49,14 @@ export default function TaskItem({ task, onPress }: Props) {
     }
   };
 
-  const isCompleted = task.status !== 'pending';
+  const isCompleted = task.status === Status.Completed;
 
   return (
     <View style={styles.container}>
       <TouchableOpacity
         style={styles.contentArea}
         onPress={onPress}
-        activeOpacity={0.8}
-      >
+        activeOpacity={0.8}>
         <View style={styles.content}>
           <Text
             style={[
@@ -68,10 +67,23 @@ export default function TaskItem({ task, onPress }: Props) {
             {task.title}
           </Text>
           {task.description ? (
-            <Text style={[styles.description, isCompleted && styles.descriptionCompleted]}>
+            <Text
+              style={[
+                styles.description,
+                isCompleted && styles.descriptionCompleted,
+              ]}>
               {task.description}
             </Text>
           ) : null}
+
+          {task.category && (
+            <Text style={styles.metaText}>
+              Category: {task.category.toUpperCase()}
+            </Text>
+          )}
+          {task.deadline && (
+            <Text style={styles.metaText}>Deadline: {task.deadline}</Text>
+          )}
         </View>
 
         <Text
@@ -89,7 +101,7 @@ export default function TaskItem({ task, onPress }: Props) {
           activeOpacity={0.7}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <Text style={[styles.buttonText, { color: 'green' }]}>✓</Text>
+          <Text style={styles.buttonText}>✓</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -104,7 +116,7 @@ export default function TaskItem({ task, onPress }: Props) {
   );
 }
 
-const useStyles = (palette: Palette) =>
+const createStyles = (palette: Palette) =>
   StyleSheet.create({
     container: {
       backgroundColor: palette.secondary,
@@ -118,7 +130,7 @@ const useStyles = (palette: Palette) =>
       alignItems: 'center',
       gap: 8,
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
+      shadowOffset: {width: 0, height: 2},
       shadowOpacity: 0.1,
       shadowRadius: 4,
       elevation: 3,
@@ -152,6 +164,11 @@ const useStyles = (palette: Palette) =>
       color: palette.text + '66',
       fontStyle: 'italic',
     },
+    metaText: {
+      marginTop: 4,
+      color: palette.text + '88',
+      fontSize: 12,
+    },
     priority: {
       fontSize: 12,
       fontWeight: '700',
@@ -166,7 +183,7 @@ const useStyles = (palette: Palette) =>
       minWidth: 80,
       textAlign: 'center',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
+      shadowOffset: {width: 0, height: 1},
       shadowOpacity: 0.25,
       shadowRadius: 2,
       elevation: 2,
@@ -189,5 +206,6 @@ const useStyles = (palette: Palette) =>
       padding: 8,
       fontWeight: '600',
       fontSize: 20,
+      color: 'green',
     },
   });

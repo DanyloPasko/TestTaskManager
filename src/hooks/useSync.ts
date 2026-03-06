@@ -25,8 +25,10 @@ export const useSync = () => {
     try {
       await syncService.fullSync();
       setLastSyncTime(new Date());
-    } catch (error: any) {
-      setSyncError(error?.message || 'Sync failed');
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Sync failed';
+      setSyncError(message);
     } finally {
       setIsSyncing(false);
     }

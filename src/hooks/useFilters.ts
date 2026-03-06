@@ -1,20 +1,29 @@
 import { useCallback, useEffect } from 'react';
 import { useAppDispatch, useAppSelector } from './redux';
-import { Task } from '../types/task';
+import { Category, Priority, Status, Task } from '../types/task';
 import {
   setStatusFilter,
   setPriorityFilter,
+  setCategoryFilter,
   setSearchText,
   setPage,
   setPageSize,
   setTotal,
+  setSortBy,
+  setSortOrder,
   resetFilters,
 } from '../store/filterSlice';
+
+const DEFAULT_SORT: {by: 'createdAt' | 'deadline' | 'priority' | 'status'; order: 'asc' | 'desc'} = {
+  by: 'createdAt',
+  order: 'desc',
+};
 
 export const useFilters = () => {
   const dispatch = useAppDispatch();
   const filters = useAppSelector(state => state.filters.filters);
   const pagination = useAppSelector(state => state.filters.pagination);
+  const sort = useAppSelector(state => state.filters.sort ?? DEFAULT_SORT);
   const allTasks = useAppSelector(state => state.tasks.list);
 
   const getFilteredTasks = useCallback((): Task[] => {
@@ -28,6 +37,10 @@ export const useFilters = () => {
       filtered = filtered.filter(task => task.priority === filters.priority);
     }
 
+    if (filters.category && filters.category !== 'all') {
+      filtered = filtered.filter(task => task.category === filters.category);
+    }
+
     if (filters.searchText && filters.searchText.trim()) {
       const searchLower = filters.searchText.toLowerCase();
       filtered = filtered.filter(
@@ -37,8 +50,44 @@ export const useFilters = () => {
       );
     }
 
+    // sorting
+    const compare = (a: Task, b: Task): number => {
+      switch (sort.by) {
+        case 'priority': {
+          const order: Record<Priority, number> = {
+            [Priority.High]: 3,
+            [Priority.Medium]: 2,
+            [Priority.Low]: 1,
+          };
+          return order[a.priority] - order[b.priority];
+        }
+        case 'status': {
+          const order: Record<Status, number> = {
+            [Status.Pending]: 1,
+            [Status.Completed]: 2,
+          };
+          return order[a.status] - order[b.status];
+        }
+        case 'deadline': {
+          const aDeadline = a.deadline ? Date.parse(a.deadline) : Infinity;
+          const bDeadline = b.deadline ? Date.parse(b.deadline) : Infinity;
+          return aDeadline - bDeadline;
+        }
+        case 'createdAt':
+        default: {
+          const aCreated = Date.parse(a.createdAt);
+          const bCreated = Date.parse(b.createdAt);
+          return aCreated - bCreated;
+        }
+      }
+    };
+
+    filtered.sort((a, b) =>
+      sort.order === 'asc' ? compare(a, b) : compare(b, a),
+    );
+
     return filtered;
-  }, [allTasks, filters]);
+  }, [allTasks, filters, sort]);
 
   const getPaginatedTasks = useCallback((): Task[] => {
     const filtered = getFilteredTasks();
@@ -48,17 +97,24 @@ export const useFilters = () => {
   }, [getFilteredTasks, pagination.page, pagination.pageSize]);
 
   const handleStatusFilterChange = useCallback(
-    (status: 'pending' | 'completed' | 'all') => {
+    (status: Status | 'all') => {
       dispatch(setStatusFilter(status));
     },
-    [dispatch]
+    [dispatch],
   );
 
   const handlePriorityFilterChange = useCallback(
-    (priority: 'low' | 'medium' | 'high' | 'all') => {
+    (priority: Priority | 'all') => {
       dispatch(setPriorityFilter(priority));
     },
-    [dispatch]
+    [dispatch],
+  );
+
+  const handleCategoryFilterChange = useCallback(
+    (category: Category | 'all') => {
+      dispatch(setCategoryFilter(category));
+    },
+    [dispatch],
   );
 
   const handleSearchChange = useCallback(
@@ -82,6 +138,20 @@ export const useFilters = () => {
     [dispatch]
   );
 
+  const handleSortByChange = useCallback(
+    (by: 'createdAt' | 'deadline' | 'priority' | 'status') => {
+      dispatch(setSortBy(by));
+    },
+    [dispatch],
+  );
+
+  const handleSortOrderChange = useCallback(
+    (order: 'asc' | 'desc') => {
+      dispatch(setSortOrder(order));
+    },
+    [dispatch],
+  );
+
   const handleResetFilters = useCallback(() => {
     dispatch(resetFilters());
   }, [dispatch]);
@@ -98,15 +168,19 @@ export const useFilters = () => {
 
   return {
     filters,
+    sort,
     pagination,
     filteredTasks,
     paginatedTasks: getPaginatedTasks(),
     totalPages,
     onStatusFilterChange: handleStatusFilterChange,
     onPriorityFilterChange: handlePriorityFilterChange,
+    onCategoryFilterChange: handleCategoryFilterChange,
     onSearchChange: handleSearchChange,
     onPageChange: handlePageChange,
     onPageSizeChange: handlePageSizeChange,
+    onSortByChange: handleSortByChange,
+    onSortOrderChange: handleSortOrderChange,
     onResetFilters: handleResetFilters,
   };
 };

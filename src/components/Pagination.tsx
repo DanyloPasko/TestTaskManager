@@ -1,11 +1,11 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Palette, useTheme } from '../theme/designSystem';
 import { useFilters } from '../hooks/useFilters';
 
 export default function Pagination() {
   const { palette } = useTheme();
-  const styles = useStyles(palette);
+  const styles = useMemo(() => createStyles(palette), [palette]);
   const { pagination, totalPages, onPageChange } = useFilters();
 
   if (totalPages <= 1) {
@@ -69,7 +69,7 @@ export default function Pagination() {
   );
 }
 
-const useStyles = (palette: Palette) =>
+const createStyles = (palette: Palette) =>
   StyleSheet.create({
     container: {
       flexDirection: 'row',

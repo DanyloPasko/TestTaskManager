@@ -1,4 +1,4 @@
-import {useEffect} from 'react';
+import {useEffect, useMemo} from 'react';
 import {ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../navigation/RootNavigation';
@@ -10,14 +10,22 @@ import {SyncIndicator} from '../components/SyncIndicator';
 import SearchBar from '../components/SearchBar';
 import StatusPriorityFilter from '../components/StatusPriorityFilter';
 import Pagination from '../components/Pagination';
+import SortBar from '../components/SortBar';
 import {useFilters} from '../hooks/useFilters';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TaskList'>;
 
 export default function TaskListScreen({ navigation }: Props) {
   const { palette } = useTheme();
-  const styles = useStyles(palette);
-  const { tasks, isLoading, isOnline, refetch } = useTasks();
+  const styles = useMemo(() => createStyles(palette), [palette]);
+  const {
+    tasks,
+    isLoading,
+    isOnline,
+    refetch,
+    deleteTask,
+    toggleStatus,
+  } = useTasks();
   const { paginatedTasks } = useFilters();
 
   useEffect(() => {
@@ -48,6 +56,8 @@ export default function TaskListScreen({ navigation }: Props) {
       <SearchBar />
       <StatusPriorityFilter type="status" />
       <StatusPriorityFilter type="priority" />
+      <StatusPriorityFilter type="category" />
+      <SortBar />
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
@@ -58,11 +68,15 @@ export default function TaskListScreen({ navigation }: Props) {
         <>
           <FlatList
             data={paginatedTasks}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
+            keyExtractor={item => item.id}
+            renderItem={({item}) => (
               <TaskItem
                 task={item}
-                onPress={() => navigation.navigate('TaskForm', { task: item })}
+                onPress={() =>
+                  navigation.navigate('TaskForm', {task: item})
+                }
+                onDelete={deleteTask}
+                onToggleStatus={toggleStatus}
               />
             )}
             ListEmptyComponent={
@@ -93,7 +107,7 @@ export default function TaskListScreen({ navigation }: Props) {
   );
 }
 
-const useStyles = (palette: Palette) =>
+const createStyles = (palette: Palette) =>
   StyleSheet.create({
     container: {
       flex: 1,

@@ -1,6 +1,9 @@
 import { createApi, fakeBaseQuery } from '@reduxjs/toolkit/query/react';
-import { Task, CreateTaskInput } from '../../types/task';
+import { Task, CreateTaskInput, Status } from '../../types/task';
 import firestoreService from '../../services/firestore.service';
+
+const toErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : 'Unknown error';
 
 // RTK Query API for Firebase operations
 export const tasksApi = createApi({
@@ -13,8 +16,10 @@ export const tasksApi = createApi({
         try {
           const tasks = await firestoreService.getTasks();
           return { data: tasks };
-        } catch (error: any) {
-          return { data: [] };
+        } catch (error: unknown) {
+          return {
+            error: { status: 'CUSTOM_ERROR', error: toErrorMessage(error) },
+          };
         }
       },
       providesTags: (result) =>
@@ -31,8 +36,10 @@ export const tasksApi = createApi({
         try {
           const task = await firestoreService.getTaskById(id);
           return { data: task };
-        } catch (error: any) {
-          return { error: { status: 'CUSTOM_ERROR', error: error.message } };
+        } catch (error: unknown) {
+          return {
+            error: { status: 'CUSTOM_ERROR', error: toErrorMessage(error) },
+          };
         }
       },
       providesTags: (result, error, id) => [{ type: 'Task', id }],
@@ -43,8 +50,10 @@ export const tasksApi = createApi({
         try {
           const task = await firestoreService.createTask(taskData);
           return { data: task };
-        } catch (error: any) {
-          return { error: { status: 'CUSTOM_ERROR', error: error.message || 'Unknown error' } };
+        } catch (error: unknown) {
+          return {
+            error: { status: 'CUSTOM_ERROR', error: toErrorMessage(error) },
+          };
         }
       },
       invalidatesTags: [{ type: 'Task', id: 'LIST' }],
@@ -55,8 +64,10 @@ export const tasksApi = createApi({
         try {
           await firestoreService.updateTask(id, updates);
           return { data: { success: true } };
-        } catch (error: any) {
-          return { error: { status: 'CUSTOM_ERROR', error: error?.message || 'Unknown error' } };
+        } catch (error: unknown) {
+          return {
+            error: { status: 'CUSTOM_ERROR', error: toErrorMessage(error) },
+          };
         }
       },
       invalidatesTags: (result, error, { id }) => [
@@ -70,8 +81,10 @@ export const tasksApi = createApi({
         try {
           await firestoreService.deleteTask(id);
           return { data: { success: true } };
-        } catch (error: any) {
-          return { error: { status: 'CUSTOM_ERROR', error: error?.message || 'Unknown error' } };
+        } catch (error: unknown) {
+          return {
+            error: { status: 'CUSTOM_ERROR', error: toErrorMessage(error) },
+          };
         }
       },
       invalidatesTags: (result, error, id) => [
@@ -85,12 +98,15 @@ export const tasksApi = createApi({
         try {
           const task = await firestoreService.getTaskById(id);
           if (task) {
-            const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+            const newStatus =
+              task.status === Status.Completed ? Status.Pending : Status.Completed;
             await firestoreService.updateTask(id, { status: newStatus });
           }
           return { data: { success: true } };
-        } catch (error: any) {
-          return { error: { status: 'CUSTOM_ERROR', error: error?.message || 'Unknown error' } };
+        } catch (error: unknown) {
+          return {
+            error: { status: 'CUSTOM_ERROR', error: toErrorMessage(error) },
+          };
         }
       },
       invalidatesTags: (result, error, id) => [

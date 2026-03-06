@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import {
   Alert,
   StyleSheet,
@@ -11,11 +11,12 @@ import {
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {RootStackParamList} from '../navigation/RootNavigation';
-import {Priority} from '../types/task';
+import {Category, Priority, Status} from '../types/task';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Palette, useTheme} from '../theme/designSystem.ts';
 import {useTasks} from '../hooks/useTasks';
 import {useImagePicker} from '../hooks/useImagePicker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TaskForm'>;
 
@@ -23,7 +24,7 @@ type PriorityButtonProps = {
   value: Priority;
   current: Priority;
   onPress: (value: Priority) => void;
-  styles: ReturnType<typeof useStyles>;
+  styles: ReturnType<typeof createStyles>;
 };
 
 const PriorityButton = ({
@@ -48,11 +49,40 @@ const PriorityButton = ({
   </TouchableOpacity>
 );
 
+type CategoryButtonProps = {
+  value: Category;
+  current: Category;
+  onPress: (value: Category) => void;
+  styles: ReturnType<typeof createStyles>;
+};
+
+const CategoryButton = ({
+  value,
+  current,
+  onPress,
+  styles,
+}: CategoryButtonProps) => (
+  <TouchableOpacity
+    onPress={() => onPress(value)}
+    style={[
+      styles.categoryButton,
+      current === value && styles.categoryButtonActive,
+    ]}>
+    <Text
+      style={[
+        styles.categoryText,
+        current === value && styles.categoryTextActive,
+      ]}>
+      {value.toUpperCase()}
+    </Text>
+  </TouchableOpacity>
+);
+
 type ImageSectionProps = {
   imageUri: string;
   onPick: () => void;
   onRemove: () => void;
-  styles: ReturnType<typeof useStyles>;
+  styles: ReturnType<typeof createStyles>;
 };
 
 const ImageSection = ({
@@ -76,23 +106,99 @@ const ImageSection = ({
 
 export default function TaskFormScreen({navigation, route}: Props) {
   const {palette} = useTheme();
-  const styles = useStyles(palette);
+  const styles = useMemo(() => createStyles(palette), [palette]);
   const editingTask = route.params?.task;
   const {createTask, updateTask, isCreating, isUpdating} = useTasks();
   const {pickImage} = useImagePicker();
+
+  const DRAFT_KEY = 'task_form_draft';
 
   const [title, setTitle] = useState(editingTask?.title || '');
   const [description, setDescription] = useState(
     editingTask?.description || '',
   );
   const [priority, setPriority] = useState<Priority>(
-    editingTask?.priority || 'medium',
+    editingTask?.priority || Priority.Medium,
+  );
+  const [category, setCategory] = useState<Category>(
+    editingTask?.category || Category.Other,
+  );
+  const [deadline, setDeadline] = useState<string>(
+    editingTask?.deadline || '',
   );
   const [imageUri, setImageUri] = useState(editingTask?.imageUri || '');
 
   useEffect(() => {
-    if (editingTask) {navigation.setOptions({title: 'Edit Task'});}
+    if (editingTask) {
+      navigation.setOptions({title: 'Edit Task'});
+    }
   }, [editingTask, navigation]);
+
+  // load draft for new task
+  useEffect(() => {
+    if (editingTask) {
+      return;
+    }
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(DRAFT_KEY);
+        if (!raw) {
+          return;
+        }
+        const draft = JSON.parse(raw) as {
+          title?: string;
+          description?: string;
+          priority?: Priority;
+          category?: Category;
+          deadline?: string;
+          imageUri?: string;
+        };
+        if (draft.title) {
+          setTitle(draft.title);
+        }
+        if (draft.description) {
+          setDescription(draft.description);
+        }
+        if (draft.priority) {
+          setPriority(draft.priority);
+        }
+        if (draft.category) {
+          setCategory(draft.category);
+        }
+        if (draft.deadline) {
+          setDeadline(draft.deadline);
+        }
+        if (draft.imageUri) {
+          setImageUri(draft.imageUri);
+        }
+      } catch {
+        // ignore draft load errors
+      }
+    })();
+  }, [editingTask]);
+
+  // autosave draft for new task
+  useEffect(() => {
+    if (editingTask) {
+      return;
+    }
+    const saveDraft = async () => {
+      try {
+        const payload = JSON.stringify({
+          title,
+          description,
+          priority,
+          category,
+          deadline,
+          imageUri,
+        });
+        await AsyncStorage.setItem(DRAFT_KEY, payload);
+      } catch {
+        // ignore draft save errors
+      }
+    };
+    saveDraft();
+  }, [editingTask, title, description, priority, category, deadline, imageUri]);
 
   const handleImagePick = async () => {
     try {
@@ -115,11 +221,17 @@ export default function TaskFormScreen({navigation, route}: Props) {
         title,
         description,
         priority,
-        status: editingTask?.status || 'pending',
+        status: editingTask?.status || Status.Pending,
+        category,
+        deadline: deadline || undefined,
         imageUri: imageUri || undefined,
       };
-      if (editingTask) {await updateTask(editingTask.id, taskData);}
-      else {await createTask(taskData);}
+      if (editingTask) {
+        await updateTask(editingTask.id, taskData);
+      } else {
+        await createTask(taskData);
+        await AsyncStorage.removeItem(DRAFT_KEY);
+      }
       navigation.goBack();
     } catch {
       Alert.alert('Error', 'Failed to save task');
@@ -150,7 +262,7 @@ export default function TaskFormScreen({navigation, route}: Props) {
 
         <Text style={styles.label}>Priority</Text>
         <View style={styles.priorityRow}>
-          {(['low', 'medium', 'high'] as Priority[]).map(p => (
+          {[Priority.Low, Priority.Medium, Priority.High].map(p => (
             <PriorityButton
               key={p}
               value={p}
@@ -160,6 +272,30 @@ export default function TaskFormScreen({navigation, route}: Props) {
             />
           ))}
         </View>
+
+        <Text style={styles.label}>Category</Text>
+        <View style={styles.priorityRow}>
+          {[Category.Work, Category.Personal, Category.Shopping, Category.Other].map(
+            c => (
+              <CategoryButton
+                key={c}
+                value={c}
+                current={category}
+                onPress={setCategory}
+                styles={styles}
+              />
+            ),
+          )}
+        </View>
+
+        <Text style={styles.label}>Deadline (optional)</Text>
+        <TextInput
+          placeholder="YYYY-MM-DD or any text"
+          placeholderTextColor={palette.text + '66'}
+          value={deadline}
+          onChangeText={setDeadline}
+          style={styles.input}
+        />
 
         <Text style={styles.label}>Image</Text>
         <ImageSection
@@ -182,7 +318,7 @@ export default function TaskFormScreen({navigation, route}: Props) {
   );
 }
 
-const useStyles = (palette: Palette) =>
+const createStyles = (palette: Palette) =>
   StyleSheet.create({
     container: {padding: 16, flex: 1, backgroundColor: palette.background},
     input: {
@@ -225,6 +361,28 @@ const useStyles = (palette: Palette) =>
     priorityText: {fontSize: 12, color: palette.text, fontWeight: '600'},
     priorityTextActive: {
       color: palette.text === '#fff' ? '#121212' : '#fff',
+      fontWeight: '700',
+    },
+    categoryButton: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: palette.text + '20',
+      alignItems: 'center',
+      backgroundColor: palette.secondary,
+    },
+    categoryButtonActive: {
+      backgroundColor: palette.primary + '10',
+      borderColor: palette.primary,
+    },
+    categoryText: {
+      fontSize: 12,
+      color: palette.text,
+      fontWeight: '600',
+    },
+    categoryTextActive: {
+      color: palette.primary,
       fontWeight: '700',
     },
     imageContainer: {

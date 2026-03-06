@@ -1,45 +1,69 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Palette, useTheme } from '../theme/designSystem';
 import { useFilters } from '../hooks/useFilters';
+import { Category, Priority, Status } from '../types/task';
 
 interface StatusPriorityFilterProps {
-  type: 'status' | 'priority';
+  type: 'status' | 'priority' | 'category';
 }
 
-const STATUS_OPTIONS = [
+type StatusFilterValue = Status | 'all';
+type PriorityFilterValue = Priority | 'all';
+type CategoryFilterValue = Category | 'all';
+
+const STATUS_OPTIONS: { label: string; value: StatusFilterValue }[] = [
   { label: 'All', value: 'all' },
-  { label: 'Pending', value: 'pending' },
-  { label: 'Completed', value: 'completed' },
+  { label: 'Pending', value: Status.Pending },
+  { label: 'Completed', value: Status.Completed },
 ];
 
-const PRIORITY_OPTIONS = [
+const PRIORITY_OPTIONS: { label: string; value: PriorityFilterValue }[] = [
   { label: 'All', value: 'all' },
-  { label: 'Low', value: 'low' },
-  { label: 'Medium', value: 'medium' },
-  { label: 'High', value: 'high' },
+  { label: 'Low', value: Priority.Low },
+  { label: 'Medium', value: Priority.Medium },
+  { label: 'High', value: Priority.High },
+];
+
+const CATEGORY_OPTIONS: { label: string; value: CategoryFilterValue }[] = [
+  { label: 'All', value: 'all' },
+  { label: 'Work', value: Category.Work },
+  { label: 'Personal', value: Category.Personal },
+  { label: 'Shopping', value: Category.Shopping },
+  { label: 'Other', value: Category.Other },
 ];
 
 export default function StatusPriorityFilter({ type }: StatusPriorityFilterProps) {
   const { palette } = useTheme();
-  const styles = useStyles(palette);
+  const styles = useMemo(() => createStyles(palette), [palette]);
   const {
     filters,
     onStatusFilterChange,
     onPriorityFilterChange,
+    onCategoryFilterChange,
   } = useFilters();
 
-  const options = type === 'status' ? STATUS_OPTIONS : PRIORITY_OPTIONS;
-  const currentValue = type === 'status' ? filters.status : filters.priority;
-  const handleChange = type === 'status' ? onStatusFilterChange : onPriorityFilterChange;
+  const options =
+    type === 'status'
+      ? STATUS_OPTIONS
+      : type === 'priority'
+      ? PRIORITY_OPTIONS
+      : CATEGORY_OPTIONS;
 
-  const getPriorityColor = (value: string) => {
+  const currentValue =
+    type === 'status'
+      ? filters.status
+      : type === 'priority'
+      ? filters.priority
+      : filters.category;
+
+  const getPriorityColor = (value: PriorityFilterValue) => {
     switch (value) {
-      case 'low':
+      case Priority.Low:
         return '#4caf50';
-      case 'medium':
+      case Priority.Medium:
         return '#ff9800';
-      case 'high':
+      case Priority.High:
         return '#f44336';
       default:
         return palette.primary;
@@ -49,7 +73,11 @@ export default function StatusPriorityFilter({ type }: StatusPriorityFilterProps
   return (
     <View style={styles.container}>
       <Text style={styles.label}>
-        {type === 'status' ? 'Status' : 'Priority'}
+        {type === 'status'
+          ? 'Status'
+          : type === 'priority'
+          ? 'Priority'
+          : 'Category'}
       </Text>
       <ScrollView
         horizontal
@@ -63,7 +91,15 @@ export default function StatusPriorityFilter({ type }: StatusPriorityFilterProps
               styles.button,
               currentValue === option.value && styles.buttonActive,
             ]}
-            onPress={() => handleChange(option.value as any)}
+            onPress={() => {
+              if (type === 'status') {
+                onStatusFilterChange(option.value as StatusFilterValue);
+              } else if (type === 'priority') {
+                onPriorityFilterChange(option.value as PriorityFilterValue);
+              } else {
+                onCategoryFilterChange(option.value as CategoryFilterValue);
+              }
+            }}
           >
             {type === 'priority' && option.value !== 'all' && (
               <View
@@ -88,7 +124,7 @@ export default function StatusPriorityFilter({ type }: StatusPriorityFilterProps
   );
 }
 
-const useStyles = (palette: Palette) =>
+const createStyles = (palette: Palette) =>
   StyleSheet.create({
     container: {
       paddingHorizontal: 16,

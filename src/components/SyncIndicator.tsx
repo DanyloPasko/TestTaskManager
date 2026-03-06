@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { useSync } from '../hooks/useSync';
 import { Palette, useTheme } from '../theme/designSystem';
@@ -9,7 +9,7 @@ interface SyncIndicatorProps {
 
 export const SyncIndicator: React.FC<SyncIndicatorProps> = ({ showDetails = false }) => {
   const { palette } = useTheme();
-  const styles = useStyles(palette);
+  const styles = useMemo(() => createStyles(palette), [palette]);
   const {
     isOnline,
     isSyncing,
@@ -64,7 +64,7 @@ export const SyncIndicator: React.FC<SyncIndicatorProps> = ({ showDetails = fals
   );
 };
 
-const useStyles = (palette: Palette) =>
+const createStyles = (palette: Palette) =>
   StyleSheet.create({
     container: {
       padding: 8,

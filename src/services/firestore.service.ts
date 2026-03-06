@@ -2,40 +2,83 @@ import firestore, {
   FirebaseFirestoreTypes,
 } from '@react-native-firebase/firestore';
 import storage from '@react-native-firebase/storage';
-import {CreateTaskInput, Task} from '../types/task';
+import {
+  Category,
+  CreateTaskInput,
+  Priority,
+  Status,
+  SyncStatus,
+  Task,
+} from '../types/task';
 import {FIRESTORE_COLLECTIONS} from '../config/firebase';
 
 const tasksCollection = firestore().collection(FIRESTORE_COLLECTIONS.TASKS);
 
-const convertTimestamp = (timestamp: any): string =>
-  timestamp?.toDate
-    ? timestamp.toDate().toISOString()
-    : timestamp || new Date().toISOString();
+type FirestoreTimestampLike =
+  | FirebaseFirestoreTypes.Timestamp
+  | FirebaseFirestoreTypes.FieldValue
+  | string
+  | null
+  | undefined;
+
+const convertTimestamp = (timestamp: FirestoreTimestampLike): string =>
+  (timestamp as FirebaseFirestoreTypes.Timestamp | undefined)?.toDate
+    ? (timestamp as FirebaseFirestoreTypes.Timestamp).toDate().toISOString()
+    : (typeof timestamp === 'string' && timestamp) || new Date().toISOString();
 
 const fromFirestoreTask = (
   doc: FirebaseFirestoreTypes.QueryDocumentSnapshot<FirebaseFirestoreTypes.DocumentData>,
 ): Task => {
-  const data = doc.data() as any;
+  const data = doc.data();
+  const createdAt = convertTimestamp(
+    data.createdAt as FirestoreTimestampLike,
+  );
+  const updatedAt = convertTimestamp(
+    data.updatedAt as FirestoreTimestampLike,
+  );
+
   return {
-    ...data,
     id: doc.id,
-    createdAt: convertTimestamp(data.createdAt),
-    updatedAt: convertTimestamp(data.updatedAt),
-    syncStatus: 'synced',
-  } as Task;
+    title: String(data.title ?? ''),
+    description:
+      typeof data.description === 'string' ? data.description : undefined,
+    status: (data.status as Status | undefined) ?? Status.Pending,
+    priority: (data.priority as Priority | undefined) ?? Priority.Medium,
+    category: (data.category as Category | undefined) ?? undefined,
+    deadline: typeof data.deadline === 'string' ? data.deadline : null,
+    createdAt,
+    updatedAt,
+    imageUri:
+      typeof data.imageUri === 'string' ? data.imageUri : undefined,
+    syncStatus: SyncStatus.Synced,
+  };
 };
 
 const buildSafeUpdates = (
   updates: Partial<CreateTaskInput>,
-): Record<string, any> => {
-  const safeUpdates: Record<string, any> = {};
-  if (updates.title !== undefined) {safeUpdates.title = updates.title;}
-  if (updates.description !== undefined)
-    {safeUpdates.description = updates.description;}
-  if (updates.status !== undefined) {safeUpdates.status = updates.status;}
-  if (updates.priority !== undefined) {safeUpdates.priority = updates.priority;}
-  if (updates.category !== undefined) {safeUpdates.category = updates.category;}
-  if (updates.imageUri !== undefined) {safeUpdates.imageUri = updates.imageUri;}
+): FirebaseFirestoreTypes.UpdateData => {
+  const safeUpdates: FirebaseFirestoreTypes.UpdateData = {};
+  if (updates.title !== undefined) {
+    safeUpdates.title = updates.title;
+  }
+  if (updates.description !== undefined) {
+    safeUpdates.description = updates.description;
+  }
+  if (updates.status !== undefined) {
+    safeUpdates.status = updates.status;
+  }
+  if (updates.priority !== undefined) {
+    safeUpdates.priority = updates.priority;
+  }
+  if (updates.category !== undefined) {
+    safeUpdates.category = updates.category;
+  }
+  if (updates.deadline !== undefined) {
+    safeUpdates.deadline = updates.deadline;
+  }
+  if (updates.imageUri !== undefined) {
+    safeUpdates.imageUri = updates.imageUri;
+  }
   safeUpdates.updatedAt = firestore.FieldValue.serverTimestamp();
   return safeUpdates;
 };
@@ -46,7 +89,8 @@ const createTask = async (taskData: CreateTaskInput): Promise<Task> => {
     description: taskData.description || '',
     priority: taskData.priority,
     status: taskData.status,
-    category: taskData.category || '',
+    category: taskData.category ?? null,
+    deadline: taskData.deadline ?? null,
     imageUri: taskData.imageUri || '',
     createdAt: firestore.FieldValue.serverTimestamp(),
     updatedAt: firestore.FieldValue.serverTimestamp(),

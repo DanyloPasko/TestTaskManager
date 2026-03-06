@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, TextInput, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { Palette, useTheme } from '../theme/designSystem';
 import { useFilters } from '../hooks/useFilters';
 
 export default function SearchBar() {
   const { palette } = useTheme();
-  const styles = useStyles(palette);
+  const styles = useMemo(() => createStyles(palette), [palette]);
   const { filters, onSearchChange, onResetFilters } = useFilters();
   const [searchText, setSearchText] = useState(filters.searchText);
 
@@ -49,7 +49,7 @@ export default function SearchBar() {
   );
 }
 
-const useStyles = (palette: Palette) =>
+const createStyles = (palette: Palette) =>
   StyleSheet.create({
     container: {
       paddingHorizontal: 16,
