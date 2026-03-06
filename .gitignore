@@ -21,8 +21,6 @@ DerivedData
 **/.xcode.env.local
 
 # Android/IntelliJ
-build
-!android/app/build/outputs/apk/debug
 .idea
 .gradle
 local.properties
@@ -32,6 +30,14 @@ local.properties
 *.keystore
 !debug.keystore
 .kotlin/
+
+#android
+android/build/
+android/app/build/generated
+android/app/build/intermediates
+android/app/build/kotlin
+android/app/build/tmp
+android/app/build/gmpAppId.txt
 
 # node.js
 #
