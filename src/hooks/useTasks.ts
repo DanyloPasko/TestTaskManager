@@ -47,11 +47,8 @@ export const useTasks = () => {
     if (!isOnline || !remoteTasks) {
       return;
     }
-    if (!localTasks.length) {
-      // initial load from server
-      dispatch(setTasks(remoteTasks));
-    }
-  }, [isOnline, remoteTasks, localTasks.length, dispatch]);
+    dispatch(setTasks(remoteTasks));
+  }, [isOnline, remoteTasks, dispatch]);
 
   const handleCreateTask = useCallback(
     async (taskData: CreateTaskInput) => {

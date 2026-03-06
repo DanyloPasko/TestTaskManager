@@ -1,5 +1,5 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Category, Priority, Status } from '../types/task';
+import {createSlice, PayloadAction} from '@reduxjs/toolkit';
+import {Category, Priority, Status} from '../types/task';
 
 type StatusFilter = Status | 'all';
 type PriorityFilter = Priority | 'all';
@@ -78,10 +78,10 @@ const filterSlice = createSlice({
       state.pagination.total = action.payload;
     },
 
-    setSortBy: (
-      state,
-      action: PayloadAction<FiltersState['sort']['by']>,
-    ) => {
+    setSortBy: (state, action: PayloadAction<FiltersState['sort']['by']>) => {
+      if (!state.sort) {
+        state.sort = {by: 'createdAt', order: 'desc'};
+      }
       state.sort.by = action.payload;
       state.pagination.page = 1;
     },
@@ -90,10 +90,13 @@ const filterSlice = createSlice({
       state,
       action: PayloadAction<FiltersState['sort']['order']>,
     ) => {
+      if (!state.sort) {
+        state.sort = {by: 'createdAt', order: 'desc'};
+      }
       state.sort.order = action.payload;
     },
 
-    resetFilters: (state) => {
+    resetFilters: state => {
       state.filters = {
         status: 'all',
         priority: 'all',
