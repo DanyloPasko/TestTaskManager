@@ -1,4 +1,9 @@
 {
   "name": "TaskManager",
-  "displayName": "TaskManager"
+  "displayName": "TaskManager",
+  "extra": {
+    "eas": {
+      "projectId": "2ead4b15-4b7d-4559-bcd2-ea6eb928a998"
+    }
+  }
 }
